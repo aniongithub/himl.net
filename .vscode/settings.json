@@ -1,0 +1,4 @@
+{
+    "dotnet.defaultSolution": "himl.net.sln",
+    "dotnet.unitTests.runSettingsPath": "test.runsettings"
+}

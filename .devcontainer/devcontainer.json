@@ -1,0 +1,32 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/dotnet
+{
+	"name": "himl.net",
+
+	"dockerComposeFile": [
+    	"docker-compose-dev.yml",
+	],
+  	"service": "himl.net-devcontainer",
+	"workspaceFolder": "/workspace/himl.net",
+
+	"features": {
+		"ghcr.io/nils-geistmann/devcontainers-features/create-remote-user:0": {
+			"passwordlessSudo": true
+		}
+	},
+	"remoteUser": "vscode",	// Configure tool-specific properties.
+	"containerEnv": {
+		"SHELL": "/bin/bash",
+		"workspaceFolder": "${containerWorkspaceFolder}"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-dotnettools.csharp",
+				"fernandoescolar.vscode-solution-explorer",
+				"zaaack.markdown-editor",
+				"ms-dotnettools.csdevkit"
+			]
+		}
+	}
+}

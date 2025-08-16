@@ -1,0 +1,38 @@
+services:
+
+  himl.net-devcontainer:
+    image: "mcr.microsoft.com/dotnet/sdk:9.0"
+    volumes:
+      - ..:/workspace/himl.net:cached
+    command: sleep infinity
+    networks:
+      - devcontainer-network
+    depends_on:
+      - vault
+
+  vault:
+    image: hashicorp/vault:latest
+    container_name: vault-dev
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "dev-root-token"
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      VAULT_ADDR: "http://0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    command: >
+      sh -c "
+      vault server -dev -dev-root-token-id=dev-root-token &
+      sleep 5 &&
+      export VAULT_TOKEN=dev-root-token &&
+      vault secrets enable -path=kv2_secret kv-v2 &&
+      vault kv put kv2_secret/key value=test-secret-value &&
+      wait
+      "
+    networks:
+      - devcontainer-network
+
+networks:  
+  devcontainer-network:
+    driver: bridge
