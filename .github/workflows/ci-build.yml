@@ -1,7 +1,7 @@
-name: PR Build
+name: CI Build
 
 on:
-  pull_request:
+  push:
     branches: [ main ]
 
 jobs:

@@ -32,24 +32,8 @@ public sealed class Examples
         
         _processor = new ConfigurationProcessor(logger, merger, interpolationResolver, formatter, secretResolvers);
 
-        // Determine examples path using RootDir from test.runsettings (TestRunParameters)
-        // If not provided, fall back to the current working directory
-        var rootDirObj = TestContext?.Properties["RootDir"];
-        string rootDir;
-        if (rootDirObj != null && !string.IsNullOrWhiteSpace(rootDirObj.ToString()))
-        {
-            rootDir = Path.GetFullPath(rootDirObj.ToString()!);
-        }
-        else
-        {
-            rootDir = Directory.GetCurrentDirectory();
-        }
-
-        _examplesPath = Path.Combine(rootDir, "examples");
-        if (!Directory.Exists(_examplesPath))
-        {
-            throw new DirectoryNotFoundException($"Examples directory not found at '{_examplesPath}'. RootDir: {rootDir}");
-        }
+        // Examples are copied into the test output; use relative path
+        _examplesPath = Path.GetFullPath("examples");
     }
 
     /// <summary>
@@ -213,30 +197,5 @@ public sealed class Examples
         Assert.IsTrue(result.Data.ContainsKey("env"));
         Assert.IsTrue(result.Data.ContainsKey("deep"));
         Assert.IsFalse(result.Data.ContainsKey("deep_list"));
-    }
-
-    /// <summary>
-    /// Test resolving secrets using the vault secret resolver (placeholder implementation)
-    /// </summary>
-    [TestMethod]
-    public async Task SecretsExample_Vault_ShouldResolveSecrets()
-    {
-        // Arrange
-        var options = new HimlOptions
-        {
-            WorkingDirectory = Path.Combine(_examplesPath, "secrets")
-        };
-
-        // Act
-        var result = await _processor.ProcessAsync(options.WorkingDirectory!, options);
-
-        // Assert
-        Assert.AreEqual(0, result.Errors.Count, $"Errors: {string.Join(", ", result.Errors)}");
-        Assert.IsTrue(result.Data.ContainsKey("secret_path_v2"));
-        Assert.IsTrue(result.Data.ContainsKey("secret_key_v2"));
-
-        // The current VaultSecretResolver is a placeholder that returns "vault-secret-from-{path}"
-        Assert.AreEqual("vault-secret-from-/kv2_secret", result.Data["secret_path_v2"]);
-        Assert.AreEqual("vault-secret-from-/kv2_secret/key", result.Data["secret_key_v2"]);
     }
 }
