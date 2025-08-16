@@ -18,12 +18,12 @@ dotnet tool install --global --add-source ./nupkg himl.cli --version 1.0.0
 
 ## Usage
 
-This CLI runs in the upstream `himl-config-merger` mode: it scans a configuration tree and writes one merged file per leaf into an output directory.
+The CLI scans a HIML configuration tree and writes one merged file per leaf into an output directory.
 
 Example:
 
 ```bash
-himl examples/complex --output-dir merged_output --levels env region cluster
+dotnet himl.cli examples/complex --output-dir merged_output --levels env region cluster
 ```
 
 Install as a .NET tool:

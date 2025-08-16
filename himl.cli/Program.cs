@@ -24,14 +24,13 @@ public class CliApp
     public async Task<int> RunAsync(string[] args)
     {
         // Create the root command
-        var rootCommand = new RootCommand("HIML - Hierarchical Configuration using YAML (config-merger mode)");
+        var rootCommand = new RootCommand("HIML - Hierarchical Configuration using YAML");
 
         // Add the path argument
         var pathArgument = new Argument<string>("path", "Root path to the configuration directory hierarchy");
         rootCommand.AddArgument(pathArgument);
 
-        // Add options (config-merger specific)
-        var outputDirOption = new Option<string?>(new[] { "--output-dir", "-d" }, "Output directory for himl-config-merger mode (will write one file per leaf)");
+        var outputDirOption = new Option<string?>(new[] { "--output-dir", "-d" }, "Output directory (will write one file per leaf)");
         var formatOption = new Option<string>(new[] { "--format", "-f" }, () => "yaml", "Output format (yaml or json)");
         var filterOption = new Option<string[]>(new[] { "--filter" }, "Keep only these keys from the generated data");
         var excludeOption = new Option<string[]>(new[] { "--exclude" }, "Exclude these keys from the generated data");
@@ -40,7 +39,7 @@ public class CliApp
         var multiLineStringOption = new Option<bool>(new[] { "--multi-line-string" }, "Use multi-line string format for YAML output");
         var cwdOption = new Option<string?>(new[] { "--cwd" }, "Working directory for relative path resolution");
         var levelsOption = new Option<string[]>(new[] { "--levels" }, "List of level keys (eg: env region cluster) used to compute leaf directories");
-        var filterRulesKeyOption = new Option<string?>(new[] { "--filter-rules-key" }, "Optional key name containing filter rules used by himl-config-merger (if present in configs)");
+        var filterRulesKeyOption = new Option<string?>(new[] { "--filter-rules-key" }, "Optional key name containing filter rules (if present in configs)");
         var enclosingKeyOption = new Option<string?>(new[] { "--enclosing-key" }, "Wrap output under this key");
         var removeEnclosingKeyOption = new Option<string?>(new[] { "--remove-enclosing-key" }, "Remove this wrapper key from output if present");
         var listMergeStrategyOption = new Option<string?>(new[] { "--list-merge-strategy" }, "List merge strategy: Override, Append, Prepend, AppendUnique");
@@ -79,10 +78,10 @@ public class CliApp
 
             try
             {
-                // Validate mandatory config-merger options
+                // Validate mandatory options
                 if (string.IsNullOrEmpty(outputDir))
                 {
-                    Console.Error.WriteLine("--output-dir is required. This CLI runs in himl-config-merger mode and always writes merged files to an output directory.");
+                    Console.Error.WriteLine("--output-dir is required. This CLI writes merged files to an output directory.");
                     context.ExitCode = 2;
                     return;
                 }
@@ -147,7 +146,7 @@ public class CliApp
                 var formatter = host.Services.GetRequiredService<IOutputFormatter>();
                 var logger = host.Services.GetRequiredService<ILogger<CliApp>>();
 
-                logger.LogInformation("Running in himl-config-merger mode. Scanning for leaf directories under: {Path}", path);
+                logger.LogInformation("Scanning for leaf directories under: {Path}", path);
 
                 // Find candidate directories (including root)
                 var candidateDirs = new List<string> { path };
@@ -252,7 +251,7 @@ public class CliApp
                     logger.LogInformation("Stored generated config to: {File}", filename);
                 }
 
-                logger.LogInformation("himl-config-merger run completed");
+                logger.LogInformation("Run completed");
             }
             catch (Exception ex)
             {

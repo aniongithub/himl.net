@@ -206,7 +206,7 @@ builder.Configuration
 
 ### Using the CLI
 
-The `himl` CLI tool implements the upstream `himl-config-merger` behavior. The CLI scans a root configuration tree, finds leaf directories based on a list of level keys (segments like `env=dev`), deep-merges YAML files under each leaf and writes one merged file per leaf into an output directory.
+The `himl.cli` CLI tool (distributed as the `himl.cli` package) implements the upstream `himl-config-merger` behavior — it scans a root configuration tree and writes one merged file per leaf into an output directory. Use the `--levels` option to define which path segments (e.g. `env region cluster`) define leaves.
 
 Required options
 - `--output-dir` (or `-d`): output directory where generated files will be stored
@@ -215,7 +215,11 @@ Required options
 Basic usage (config-merger mode):
 
 ```sh
+# run as a global tool
 himl examples/complex --output-dir merged_output --levels env region cluster
+
+# run as a dotnet tool by package name
+dotnet himl.cli examples/complex --output-dir merged_output --levels env region cluster
 ```
 
 This will produce a directory structure like:
@@ -244,7 +248,7 @@ Other useful options
 - `--list-merge-strategy`: Override | Append | Prepend | AppendUnique
 
 Notes
-- This CLI intentionally runs only in the config-merger mode and always writes merged files to an output directory. Use the `--levels` option to specify the hierarchy levels used to compute leaves (segments like `env=dev` are expected in directory names).
+- The CLI writes merged files to an output directory. Use the `--levels` option to specify the hierarchy levels used to compute leaves (segments like `env=dev` are expected in directory names).
 
 ## Features
 
