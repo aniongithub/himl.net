@@ -24,4 +24,8 @@
     <PackageReference Include="AWSSDK.S3" Version="3.7.401" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
 </Project>

@@ -28,4 +28,8 @@
     <ProjectReference Include="..\himl.core\himl.core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
 </Project>
