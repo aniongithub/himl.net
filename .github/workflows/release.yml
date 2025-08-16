@@ -1,0 +1,54 @@
+name: Release - Publish NuGet Packages
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Determine package version
+        id: determine_version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          # Use the release tag (strip leading 'v' if present). Fall back to ref if needed.
+          TAG="${RELEASE_TAG:-${GITHUB_REF##*/}}"
+          VERSION="${TAG#v}"
+          echo "Determined version: $VERSION"
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and pack
+        env:
+          VERSION: ${{ steps.determine_version.outputs.VERSION }}
+        run: |
+          set -euo pipefail
+          echo "Using VERSION=$VERSION"
+          # Pass VERSION to pack script so it sets PackageVersion during pack
+          VERSION="$VERSION" ./scripts/pack.sh
+
+      - name: List generated packages
+        run: ls -la nupkg || true
+
+      - name: Publish packages to NuGet.org
+        if: success()
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_SECRET }}
+        run: |
+          set -euo pipefail
+          echo "Publishing packages in nupkg/"
+          for pkg in nupkg/*.nupkg; do
+            echo "Pushing $pkg"
+            dotnet nuget push "$pkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          done

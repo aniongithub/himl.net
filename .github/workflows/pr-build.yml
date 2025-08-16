@@ -1,0 +1,64 @@
+name: PR Build
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Start docker-compose services (Vault)
+        uses: docker/compose-action@v2
+        with:
+          compose-file: .devcontainer/docker-compose-dev.yml
+          run: up -d
+
+      - name: Wait for Vault to be ready
+        run: |
+          set -e
+          echo "Waiting for Vault on http://localhost:8200"
+          for i in $(seq 1 30); do
+            if curl -sSf http://localhost:8200/v1/sys/health >/dev/null 2>&1; then
+              echo "Vault is healthy"
+              exit 0
+            fi
+            echo "Vault not ready yet, sleeping... ($i)"
+            sleep 2
+          done
+          echo "Vault did not become ready in time"
+          echo "=== Vault logs ==="
+          docker compose -f .devcontainer/docker-compose-dev.yml logs
+          exit 1
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release /property:GenerateFullPaths=true /consoleloggerparameters:NoSummary
+
+      - name: Run tests
+        run: dotnet test --no-build -c Release --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/test-results.trx'
+
+      - name: Tear down docker-compose services
+        if: always()
+        uses: docker/compose-action@v2
+        with:
+          compose-file: .devcontainer/docker-compose-dev.yml
+          run: down -v --remove-orphans
