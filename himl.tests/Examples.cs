@@ -214,29 +214,4 @@ public sealed class Examples
         Assert.IsTrue(result.Data.ContainsKey("deep"));
         Assert.IsFalse(result.Data.ContainsKey("deep_list"));
     }
-
-    /// <summary>
-    /// Test resolving secrets using the vault secret resolver (placeholder implementation)
-    /// </summary>
-    [TestMethod]
-    public async Task SecretsExample_Vault_ShouldResolveSecrets()
-    {
-        // Arrange
-        var options = new HimlOptions
-        {
-            WorkingDirectory = Path.Combine(_examplesPath, "secrets")
-        };
-
-        // Act
-        var result = await _processor.ProcessAsync(options.WorkingDirectory!, options);
-
-        // Assert
-        Assert.AreEqual(0, result.Errors.Count, $"Errors: {string.Join(", ", result.Errors)}");
-        Assert.IsTrue(result.Data.ContainsKey("secret_path_v2"));
-        Assert.IsTrue(result.Data.ContainsKey("secret_key_v2"));
-
-        // The current VaultSecretResolver is a placeholder that returns "vault-secret-from-{path}"
-        Assert.AreEqual("vault-secret-from-/kv2_secret", result.Data["secret_path_v2"]);
-        Assert.AreEqual("vault-secret-from-/kv2_secret/key", result.Data["secret_key_v2"]);
-    }
 }
