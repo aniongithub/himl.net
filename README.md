@@ -206,52 +206,45 @@ builder.Configuration
 
 ### Using the CLI
 
-The `himl` CLI tool processes hierarchical YAML configurations:
+The `himl` CLI tool implements the upstream `himl-config-merger` behavior. The CLI scans a root configuration tree, finds leaf directories based on a list of level keys (segments like `env=dev`), deep-merges YAML files under each leaf and writes one merged file per leaf into an output directory.
+
+Required options
+- `--output-dir` (or `-d`): output directory where generated files will be stored
+- `--levels`: a space-separated list of level keys used to compute leaf directories (eg: `env region cluster`)
+
+Basic usage (config-merger mode):
 
 ```sh
-himl examples/complex/env=dev/region=us-east-1/cluster=cluster2 --format json --filter Database --exclude Secrets
+himl examples/complex --output-dir merged_output --levels env region cluster
 ```
 
-Based on the configuration tree, this outputs:
-
-```json
-{
-  "cluster": {
-    "description": "This is cluster: cluster2. It is using c3.2xlarge instance type.",
-    "name": "cluster2",
-    "nodeType": "c3.2xlarge"
-  },
-  "region": {
-    "location": "us-east-1"
-  },
-  "env": "dev"
-}
-```
-
-Directory structure:
+This will produce a directory structure like:
 
 ```
-examples/complex
-├── default.yaml
-├── env=dev
-│   ├── env.yaml
-│   ├── region=us-east-1
-│   │   ├── cluster=cluster1
-│   │   │   └── cluster.yaml
-│   │   ├── cluster=cluster2
-│   │   │   └── cluster.yaml
-│   │   └── region.yaml
-│   └── region=us-west-2
-│       ├── cluster=cluster1
-│       │   └── cluster.yaml
-│       └── region.yaml
-└── env=prod
-    ├── env.yaml
-    └── region=eu-west-2
-        ├── cluster=ireland1
-        │   └── cluster.yaml
-        └── region.yaml
+merged_output
+├── dev
+│   ├── us-east-1
+│   │   ├── cluster1.yaml
+│   │   └── cluster2.yaml
+│   └── us-west-2
+│       └── cluster1.yaml
+└── prod
+    └── eu-west-2
+        └── ireland1.yaml
 ```
+
+Other useful options
+- `--format` / `-f`: output format (`yaml` or `json`, default `yaml`)
+- `--filter`: include only these top-level keys
+- `--exclude`: exclude these top-level keys
+- `--skip-interpolation-resolving`: skip interpolation resolution
+- `--skip-secrets`: skip secret resolution
+- `--cwd`: working directory to resolve relative paths
+- `--enclosing-key` / `--remove-enclosing-key`: wrap or unwrap output under a key
+- `--list-merge-strategy`: Override | Append | Prepend | AppendUnique
+
+Notes
+- This CLI intentionally runs only in the config-merger mode and always writes merged files to an output directory. Use the `--levels` option to specify the hierarchy levels used to compute leaves (segments like `env=dev` are expected in directory names).
 
 ## Features
 

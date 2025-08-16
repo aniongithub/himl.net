@@ -36,3 +36,15 @@ Console.WriteLine(result.Output);
 ```
 
 For full documentation and examples, see the repository README: https://github.com/aniongithub/himl.net
+
+### Using the CLI
+
+The `himl` CLI tool (distributed as the `himl.cli` package) implements the upstream `himl-config-merger` behavior — it scans a root configuration tree and writes one merged file per leaf into an output directory. Use the `--levels` option to define which path segments (e.g. `env region cluster`) define leaves.
+
+Example:
+
+```sh
+himl examples/complex --output-dir merged_output --levels env region cluster
+```
+
+For full documentation and examples, see the repository README: https://github.com/aniongithub/himl.net

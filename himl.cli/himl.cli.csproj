@@ -10,6 +10,7 @@
     <ToolCommandName>himl</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageId>himl.cli</PackageId>
     <PackageVersion>1.0.0</PackageVersion>
     <Authors>Your Name</Authors>
