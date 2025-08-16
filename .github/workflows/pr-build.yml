@@ -24,7 +24,7 @@ jobs:
         run: dotnet build --no-restore -c Release /property:GenerateFullPaths=true /consoleloggerparameters:NoSummary
 
       - name: Run tests
-        run: dotnet test --no-build -c Release --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test --no-build -c Release --logger "trx;LogFileName=test-results.trx" --settings test.runsettings
 
       - name: Upload test results
         if: always()
