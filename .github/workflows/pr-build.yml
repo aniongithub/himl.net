@@ -17,11 +17,11 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v1
+
       - name: Start docker-compose services (Vault)
-        uses: docker/compose-action@v2
-        with:
-          compose-file: .devcontainer/docker-compose-dev.yml
-          run: up -d
+        run: docker compose -f .devcontainer/docker-compose-dev.yml up -d
 
       - name: Wait for Vault to be ready
         run: |
@@ -58,7 +58,4 @@ jobs:
 
       - name: Tear down docker-compose services
         if: always()
-        uses: docker/compose-action@v2
-        with:
-          compose-file: .devcontainer/docker-compose-dev.yml
-          run: down -v --remove-orphans
+        run: docker compose -f .devcontainer/docker-compose-dev.yml down -v --remove-orphans
