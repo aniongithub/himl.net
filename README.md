@@ -12,6 +12,8 @@ It is ideal if you want to structure your hierarchy in such a way that you avoid
 
 The idea came from puppet's hiera, originally implemented by [Adobe HIML](https://github.com/adobe/himl) for Python.
 
+[![CI Build](https://github.com/aniongithub/himl.net/actions/workflows/ci-build.yml/badge.svg)](https://github.com/aniongithub/himl.net/actions/workflows/ci-build.yml)
+
 ## Table of Contents
 
 - [himl.net](#himlnet)
