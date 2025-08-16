@@ -22,4 +22,13 @@
     <ProjectReference Include="..\himl.core\himl.core.csproj" />
   </ItemGroup>
 
+  <!-- Copy the top-level examples directory into the test output so tests can access example files at runtime -->
+  <ItemGroup>
+    <Content Include="..\examples\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <!-- Keep original relative path under an "examples" folder in output -->
+      <Link>examples\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+
 </Project>

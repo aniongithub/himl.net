@@ -32,24 +32,8 @@ public sealed class Examples
         
         _processor = new ConfigurationProcessor(logger, merger, interpolationResolver, formatter, secretResolvers);
 
-        // Determine examples path using RootDir from test.runsettings (TestRunParameters)
-        // If not provided, fall back to the current working directory
-        var rootDirObj = TestContext?.Properties["RootDir"];
-        string rootDir;
-        if (rootDirObj != null && !string.IsNullOrWhiteSpace(rootDirObj.ToString()))
-        {
-            rootDir = Path.GetFullPath(rootDirObj.ToString()!);
-        }
-        else
-        {
-            rootDir = Directory.GetCurrentDirectory();
-        }
-
-        _examplesPath = Path.Combine(rootDir, "examples");
-        if (!Directory.Exists(_examplesPath))
-        {
-            throw new DirectoryNotFoundException($"Examples directory not found at '{_examplesPath}'. RootDir: {rootDir}");
-        }
+        // Examples are copied into the test output; use relative path
+        _examplesPath = Path.GetFullPath("examples");
     }
 
     /// <summary>
