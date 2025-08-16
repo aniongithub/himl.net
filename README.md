@@ -21,6 +21,7 @@ The idea came from puppet's hiera, originally implemented by [Adobe HIML](https:
     - [Using NuGet Package](#using-nuget-package)
     - [Using .NET Global Tool](#using-net-global-tool)
     - [From Source](#from-source)
+  - [Development](#development)
   - [Examples](#examples)
     - [Using the .NET library](#using-the-net-library)
     - [Using Microsoft.Extensions.Configuration](#using-microsoftextensionsconfiguration)
@@ -72,6 +73,19 @@ git clone https://github.com/aniongithub/himl.net
 cd himl.net
 dotnet build
 ```
+
+Note: See the Development section
+
+## Development
+
+Dev Containers are the recommended way to develop the code in this repository. They provide a reproducible development environment (OS, tooling, and extensions) that matches CI and other contributors, so you can avoid the typical "works on my machine" problems. This project includes a devcontainer configuration and a helper Compose file to run dependent services (for example, a local Vault instance used by tests).
+
+- Overview: https://code.visualstudio.com/docs/devcontainers/containers
+- Dev Containers tutorial / installation: https://code.visualstudio.com/docs/devcontainers/tutorial
+
+Using a devcontainer allows you to open the repository in VS Code and have the correct .NET SDK, tooling, and services available automatically.
+
+**YMMV with other development methods as these will not be supported in any way.**
 
 ## Examples
 
