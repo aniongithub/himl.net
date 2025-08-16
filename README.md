@@ -45,19 +45,27 @@ The idea came from puppet's hiera, originally implemented by [Adobe HIML](https:
 ### Using NuGet Package
 
 ```sh
-dotnet add package himl.net
+dotnet add package himl
 ```
 
 Or via Package Manager Console:
 
 ```powershell
-Install-Package himl.net
+Install-Package himl
 ```
 
 ### Using .NET Global Tool
 
+Install the CLI tool (published as the `himl.cli` package):
+
 ```sh
-dotnet tool install -g himl.net.cli
+dotnet tool install -g himl.cli
+```
+
+Or install from a local folder containing the packed nupkgs (useful for testing):
+
+```sh
+dotnet tool install --global --add-source ./nupkg himl.cli --version 1.0.0
 ```
 
 Then use the tool:
@@ -73,8 +81,6 @@ git clone https://github.com/aniongithub/himl.net
 cd himl.net
 dotnet build
 ```
-
-Note: See the Development section
 
 ## Development
 
