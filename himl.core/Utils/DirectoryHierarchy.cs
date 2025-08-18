@@ -22,22 +22,34 @@ public static class DirectoryHierarchy
         if (!Directory.Exists(resolvedPath))
             throw new DirectoryNotFoundException($"Directory not found: {resolvedPath}");
 
-        var hierarchy = new List<string>();
+        // First, find all directories from the target path up to the configuration root
+        var pathsFromTargetToRoot = new List<string>();
         var currentPath = resolvedPath;
 
-        // Walk up the directory tree to find the root
+        // Walk up the directory tree to collect all paths
         while (!string.IsNullOrEmpty(currentPath))
         {
-            if (HasConfigurationFiles(currentPath))
-            {
-                hierarchy.Insert(0, currentPath); // Insert at beginning to maintain root-first order
-            }
+            pathsFromTargetToRoot.Add(currentPath);
             
             var parent = Directory.GetParent(currentPath)?.FullName;
             if (parent == currentPath) // Reached filesystem root
                 break;
                 
             currentPath = parent;
+        }
+
+        // Now build the hierarchy from root to target, only including directories with config files
+        var hierarchy = new List<string>();
+        
+        // Reverse the list to go from root to target
+        pathsFromTargetToRoot.Reverse();
+        
+        foreach (var dir in pathsFromTargetToRoot)
+        {
+            if (HasConfigurationFiles(dir))
+            {
+                hierarchy.Add(dir);
+            }
         }
 
         return hierarchy;

@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>himl.cli</AssemblyName>
     <PackAsTool>true</PackAsTool>
-    <ToolCommandName>himl</ToolCommandName>
+    <ToolCommandName>himl.cli</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageReadmeFile>README.md</PackageReadmeFile>
