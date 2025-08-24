@@ -1,0 +1,6 @@
+---
+env: test
+user: "{{env(USER):defaultUser}}"
+term: "{{env(TERM):defaultTerm}}"
+nonexistent: "{{env(NON_EXISTENT_VAR):fallbackValue}}"
+regular: "{{env(USER)}}"

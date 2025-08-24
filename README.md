@@ -297,10 +297,11 @@ dynamicTags: "${projects.${selectedProject}.tagging}"
 
 ```yaml
 database:
-  connectionString: "${env:CONNECTION_STRING}"
-  timeout: "${env:DB_TIMEOUT:30}"  # Default value of 30
+  connectionString: "{{env(CONNECTION_STRING)}}"
+  timeout: "{{env(DB_TIMEOUT):30}}"  # Default value of 30
+  host: "{{env(DB_HOST):localhost}}"
 logging:
-  level: "${env:LOG_LEVEL:Information}"
+  level: "{{env(LOG_LEVEL):Information}}"
 ```
 
 ### Deep merge
