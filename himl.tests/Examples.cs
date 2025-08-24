@@ -11,6 +11,7 @@ namespace himl.tests;
 public sealed class Examples
 {
     private ConfigurationProcessor _processor = null!;
+    private Services.InterpolationResolver _interpolationResolver = null!;
     private string _examplesPath = null!;
     public TestContext TestContext { get; set; } = null!;
 
@@ -30,6 +31,7 @@ public sealed class Examples
         var interpolationResolver = new Services.InterpolationResolver(NullLogger<Services.InterpolationResolver>.Instance, secretResolvers);
         var formatter = new Services.OutputFormatter();
         
+        _interpolationResolver = interpolationResolver;
         _processor = new ConfigurationProcessor(logger, merger, interpolationResolver, formatter, secretResolvers);
 
         // Examples are copied into the test output; use relative path
