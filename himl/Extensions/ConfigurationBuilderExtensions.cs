@@ -99,6 +99,7 @@ public class HimlConfigurationProvider : ConfigurationProvider
             services.AddSingleton<ISecretResolver, SsmSecretResolver>();
             services.AddSingleton<ISecretResolver, S3SecretResolver>();
             services.AddSingleton<ISecretResolver, VaultSecretResolver>();
+            services.AddSingleton<ISecretResolver, GoogleSecretManagerResolver>();
             services.AddSingleton<IConfigurationProcessor, ConfigurationProcessor>();
 
             using var serviceProvider = services.BuildServiceProvider();

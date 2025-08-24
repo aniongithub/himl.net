@@ -67,6 +67,33 @@ var cpuMetric = config["cluster_metrics:0:metric"];      // "cpu"
 var cpuValue = config["cluster_metrics:0:value"];        // "90"
 ```
 
+### Secret Resolution
+
+The library supports multiple secret managers for resolving secrets in your configuration:
+
+```csharp
+// Example configuration with secrets
+builder.Configuration.AddHiml("config/production", options =>
+{
+    options.SkipSecrets = false;  // Enable secret resolution (default)
+});
+
+// Configuration file can reference secrets:
+// database:
+//   password: "${gcp-sm://my-project/db-password/latest}"
+//   apiKey: "${ssm:/app/api-key}"
+//   certificate: "${vault:/secret/data/ssl:cert}"
+//   backup: "${s3:backup-bucket:credentials.json}"
+```
+
+Supported secret managers:
+- **Google Secret Manager**: `${gcp-sm://project-id/secret-name/version}`
+- **AWS Systems Manager**: `${ssm:/parameter/path}`
+- **AWS S3**: `${s3:bucket-name:object-key}`
+- **HashiCorp Vault**: `${vault:/secret/path:key}`
+
+Authentication is handled through the respective cloud provider SDKs using default credential chains.
+
 You can also chain multiple HIML sources with different merge strategies:
 
 ```csharp
