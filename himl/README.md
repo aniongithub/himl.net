@@ -39,12 +39,24 @@ For full documentation and examples, see the repository README: https://github.c
 
 ### Using the CLI
 
-The `himl` CLI tool (distributed as the `himl.cli` package) implements the upstream `himl-config-merger` behavior — it scans a root configuration tree and writes one merged file per leaf into an output directory. Use the `--levels` option to define which path segments (e.g. `env region cluster`) define leaves.
+The `himl.cli` CLI tool provides exact parity with the original Adobe HIML `himl-config-merger` tool. It generates configuration files from hierarchical YAML.
+
+Install the CLI tool:
+
+```sh
+dotnet tool install -g himl.cli
+```
+
+Basic usage:
+
+```sh
+himl.cli <path> --output-dir <output-dir> --levels <levels...> --leaf-directories <leaf-directories...>
+```
 
 Example:
 
 ```sh
-himl examples/complex --output-dir merged_output --levels env region cluster
+himl.cli examples/complex --output-dir /tmp/output --levels env region cluster --leaf-directories cluster
 ```
 
 For full documentation and examples, see the repository README: https://github.com/aniongithub/himl.net
