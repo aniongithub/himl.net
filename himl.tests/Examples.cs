@@ -11,6 +11,7 @@ namespace himl.tests;
 public sealed class Examples
 {
     private ConfigurationProcessor _processor = null!;
+    private Services.InterpolationResolver _interpolationResolver = null!;
     private string _examplesPath = null!;
     public TestContext TestContext { get; set; } = null!;
 
@@ -30,6 +31,7 @@ public sealed class Examples
         var interpolationResolver = new Services.InterpolationResolver(NullLogger<Services.InterpolationResolver>.Instance, secretResolvers);
         var formatter = new Services.OutputFormatter();
         
+        _interpolationResolver = interpolationResolver;
         _processor = new ConfigurationProcessor(logger, merger, interpolationResolver, formatter, secretResolvers);
 
         // Examples are copied into the test output; use relative path
@@ -210,5 +212,93 @@ public sealed class Examples
         Assert.IsTrue(result.Data.ContainsKey("env"));
         Assert.IsTrue(result.Data.ContainsKey("deep"));
         Assert.IsFalse(result.Data.ContainsKey("deep_list"));
+    }
+
+    /// <summary>
+    /// Test environment variable defaults functionality
+    /// </summary>
+    [TestMethod]
+    public async Task EnvironmentVariableDefaults_ShouldUseDefaultsWhenVarNotSet()
+    {
+        // Arrange
+        var originalUser = Environment.GetEnvironmentVariable("USER");
+        var originalTest = Environment.GetEnvironmentVariable("TEST_VAR_NOT_SET");
+        
+        try
+        {
+            // Ensure USER is not set and TEST_VAR_NOT_SET doesn't exist
+            Environment.SetEnvironmentVariable("USER", null);
+            Environment.SetEnvironmentVariable("TEST_VAR_NOT_SET", null);
+            
+            // Create test data with environment variable defaults
+            var data = new Dictionary<string, object?>
+            {
+                ["user_with_default"] = "{{env(USER):defaultUser}}",
+                ["test_with_default"] = "{{env(TEST_VAR_NOT_SET):fallbackValue}}",
+                ["user_without_default"] = "{{env(USER)}}",
+                ["existing_var"] = "{{env(PATH):defaultPath}}" // PATH should exist
+            };
+
+            var options = new HimlOptions();
+
+            // Act
+            var result = await _interpolationResolver.ResolveAsync(data, options);
+
+            // Assert
+            Assert.AreEqual("defaultUser", result["user_with_default"], "Should use default when USER is not set");
+            Assert.AreEqual("fallbackValue", result["test_with_default"], "Should use default when TEST_VAR_NOT_SET is not set");
+            Assert.AreEqual("", result["user_without_default"], "Should return empty string when no default provided");
+            
+            // PATH should exist, so it should use the actual value, not the default
+            var pathValue = result["existing_var"]?.ToString();
+            Assert.IsNotNull(pathValue, "PATH environment variable should exist");
+            Assert.AreNotEqual("defaultPath", pathValue, "Should use actual PATH value, not default");
+            Assert.IsTrue(pathValue.Length > 0, "PATH should not be empty");
+        }
+        finally
+        {
+            // Restore original environment variables
+            Environment.SetEnvironmentVariable("USER", originalUser);
+            Environment.SetEnvironmentVariable("TEST_VAR_NOT_SET", originalTest);
+        }
+    }
+
+    [TestMethod]
+    public async Task EnvironmentVariableDefaults_ShouldUseActualValueWhenVarIsSet()
+    {
+        // Arrange
+        var originalUser = Environment.GetEnvironmentVariable("USER");
+        var originalTest = Environment.GetEnvironmentVariable("TEST_VAR_SET");
+        
+        try
+        {
+            // Set environment variables
+            Environment.SetEnvironmentVariable("USER", "actualUser");
+            Environment.SetEnvironmentVariable("TEST_VAR_SET", "actualValue");
+            
+            // Create test data with environment variable defaults
+            var data = new Dictionary<string, object?>
+            {
+                ["user_with_default"] = "{{env(USER):defaultUser}}",
+                ["test_with_default"] = "{{env(TEST_VAR_SET):fallbackValue}}",
+                ["compound"] = "prefix-{{env(USER):defaultUser}}-suffix"
+            };
+
+            var options = new HimlOptions();
+
+            // Act
+            var result = await _interpolationResolver.ResolveAsync(data, options);
+
+            // Assert
+            Assert.AreEqual("actualUser", result["user_with_default"], "Should use actual value when USER is set");
+            Assert.AreEqual("actualValue", result["test_with_default"], "Should use actual value when TEST_VAR_SET is set");
+            Assert.AreEqual("prefix-actualUser-suffix", result["compound"], "Should use actual value in compound strings");
+        }
+        finally
+        {
+            // Restore original environment variables
+            Environment.SetEnvironmentVariable("USER", originalUser);
+            Environment.SetEnvironmentVariable("TEST_VAR_SET", originalTest);
+        }
     }
 }

@@ -123,13 +123,23 @@ public class InterpolationResolver : IInterpolationResolver
 
     private async Task<string> ResolveInterpolation(string interpolation, IDictionary<string, object?> data, HimlOptions options)
     {
-        // Environment variables: env(VAR_NAME)
+        // Environment variables: env(VAR_NAME) or env(VAR_NAME):DEFAULT_VALUE
         var envMatch = EnvVarRegex.Match(interpolation);
         if (envMatch.Success)
         {
-            var envVarName = envMatch.Groups[1].Value;
+            var envVarSpec = envMatch.Groups[1].Value;
+            var envVarName = envVarSpec;
+            var defaultValue = "";
+            
+            // Check if there's a default value specified after the closing parenthesis and a colon
+            var envMatchEnd = envMatch.Index + envMatch.Length;
+            if (envMatchEnd < interpolation.Length && interpolation[envMatchEnd] == ':')
+            {
+                defaultValue = interpolation.Substring(envMatchEnd + 1);
+            }
+            
             var envValue = Environment.GetEnvironmentVariable(envVarName);
-            return envValue ?? "";
+            return string.IsNullOrEmpty(envValue) ? defaultValue : envValue;
         }
 
         // Secret resolution: ssm.path(...).aws_profile(...)
