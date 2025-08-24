@@ -6,11 +6,11 @@ namespace himl.core.Utils;
 public static class DirectoryHierarchy
 {
     /// <summary>
-    /// Generate a list of directories from root to the specified path for configuration merging
+    /// Generate a list of directories from the specified path down to the leaves for configuration merging
     /// </summary>
     /// <param name="path">Target path</param>
     /// <param name="workingDirectory">Working directory to resolve relative paths</param>
-    /// <returns>List of directories in hierarchy order (root first)</returns>
+    /// <returns>List of directories in hierarchy order (specified path first, then down to leaves)</returns>
     public static IList<string> GenerateHierarchy(string path, string? workingDirectory = null)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -22,33 +22,38 @@ public static class DirectoryHierarchy
         if (!Directory.Exists(resolvedPath))
             throw new DirectoryNotFoundException($"Directory not found: {resolvedPath}");
 
-        // First, find all directories from the target path up to the configuration root
-        var pathsFromTargetToRoot = new List<string>();
-        var currentPath = resolvedPath;
-
-        // Walk up the directory tree to collect all paths
-        while (!string.IsNullOrEmpty(currentPath))
-        {
-            pathsFromTargetToRoot.Add(currentPath);
-            
-            var parent = Directory.GetParent(currentPath)?.FullName;
-            if (parent == currentPath) // Reached filesystem root
-                break;
-                
-            currentPath = parent;
-        }
-
-        // Now build the hierarchy from root to target, only including directories with config files
         var hierarchy = new List<string>();
         
-        // Reverse the list to go from root to target
-        pathsFromTargetToRoot.Reverse();
-        
-        foreach (var dir in pathsFromTargetToRoot)
+        // Start with the root path if it has config files
+        if (HasConfigurationFiles(resolvedPath))
         {
-            if (HasConfigurationFiles(dir))
+            hierarchy.Add(resolvedPath);
+        }
+        
+        // Walk down the directory tree to find all subdirectories with config files
+        var directoriesToProcess = new Queue<string>();
+        directoriesToProcess.Enqueue(resolvedPath);
+        
+        while (directoriesToProcess.Count > 0)
+        {
+            var currentDir = directoriesToProcess.Dequeue();
+            
+            try
             {
-                hierarchy.Add(dir);
+                var subdirectories = Directory.GetDirectories(currentDir);
+                foreach (var subdir in subdirectories)
+                {
+                    if (HasConfigurationFiles(subdir))
+                    {
+                        hierarchy.Add(subdir);
+                    }
+                    directoriesToProcess.Enqueue(subdir);
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Skip directories we can't access
+                continue;
             }
         }
 
