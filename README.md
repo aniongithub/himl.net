@@ -2,8 +2,6 @@
 
 A **HI**erarchical YA**ML** configuration system for .NET, inspired by [Adobe HIML](https://github.com/adobe/himl).
 
-Latest version is: 1.0.0 (Pre-release)
-
 ## Description
 
 A .NET library which allows you to merge hierarchical config files using YAML syntax. It offers deep merge, variable interpolation, secrets retrieval from cloud providers (AWS SSM, S3, Vault), and seamless integration with Microsoft.Extensions.Configuration.
@@ -206,49 +204,49 @@ builder.Configuration
 
 ### Using the CLI
 
-The `himl.cli` CLI tool (distributed as the `himl.cli` package) implements the upstream `himl-config-merger` behavior — it scans a root configuration tree and writes one merged file per leaf into an output directory. Use the `--levels` option to define which path segments (e.g. `env region cluster`) define leaves.
+The `himl.cli` CLI tool provides exact parity with the original Adobe HIML `himl-config-merger` tool. It generates configuration files from hierarchical YAML by scanning a root configuration tree and writing one merged file per leaf into an output directory.
 
-Required options
-- `--output-dir` (or `-d`): output directory where generated files will be stored
-- `--levels`: a space-separated list of level keys used to compute leaf directories (eg: `env region cluster`)
-
-Basic usage (config-merger mode):
+#### Installation
 
 ```sh
-# run as a global tool
-himl examples/complex --output-dir merged_output --levels env region cluster
-
-# run as a dotnet tool by package name
-dotnet himl.cli examples/complex --output-dir merged_output --levels env region cluster
+dotnet tool install -g himl.cli
 ```
 
-This will produce a directory structure like:
+#### Basic Usage
 
-```
-merged_output
-├── dev
-│   ├── us-east-1
-│   │   ├── cluster1.yaml
-│   │   └── cluster2.yaml
-│   └── us-west-2
-│       └── cluster1.yaml
-└── prod
-    └── eu-west-2
-        └── ireland1.yaml
+```sh
+himl.cli <path> --output-dir <output-dir> --levels <levels...> --leaf-directories <leaf-directories...>
 ```
 
-Other useful options
-- `--format` / `-f`: output format (`yaml` or `json`, default `yaml`)
-- `--filter`: include only these top-level keys
-- `--exclude`: exclude these top-level keys
-- `--skip-interpolation-resolving`: skip interpolation resolution
-- `--skip-secrets`: skip secret resolution
-- `--cwd`: working directory to resolve relative paths
-- `--enclosing-key` / `--remove-enclosing-key`: wrap or unwrap output under a key
-- `--list-merge-strategy`: Override | Append | Prepend | AppendUnique
+#### Required Arguments
 
-Notes
-- The CLI writes merged files to an output directory. Use the `--levels` option to specify the hierarchy levels used to compute leaves (segments like `env=dev` are expected in directory names).
+- `path` - The configs directory to process
+- `--output-dir` - Output directory where generated configs will be saved  
+- `--levels` - Hierarchy levels (e.g., env region cluster)
+- `--leaf-directories` - Leaf directories that define output files (e.g., cluster)
+
+#### Optional Arguments
+
+- `--enable-parallel` - Process config using multiprocessing
+- `--filter-rules-key` - Keep only these keys from the generated data, based on the configured filter key
+
+#### Examples
+
+Process a complex hierarchy with environment, region, and cluster levels:
+
+```sh
+himl.cli examples/complex --output-dir /tmp/output --levels env region cluster --leaf-directories cluster
+```
+
+This will generate output files named after the leaf directory values (e.g., `cluster1.yaml`, `cluster2.yaml`, `ireland1.yaml`).
+
+Process a simple environment-based hierarchy:
+
+```sh
+himl.cli test-config --output-dir /tmp/output --levels env --leaf-directories env
+```
+
+This will generate files like `dev.yaml` based on directories like `env=dev/`.
 
 ## Features
 

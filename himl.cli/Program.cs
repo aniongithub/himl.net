@@ -24,96 +24,54 @@ public class CliApp
 {
     public async Task<int> RunAsync(string[] args)
     {
-        // Create the root command
-        var rootCommand = new RootCommand("HIML - Hierarchical Configuration using YAML");
+        // Create the root command - exactly matching himl-config-merger
+        var rootCommand = new RootCommand("HIML Config Merger - Generate configuration files from hierarchical YAML");
 
         // Add the path argument
-        var pathArgument = new Argument<string>("path", "Root path to the configuration directory hierarchy");
+        var pathArgument = new Argument<string>("path", "The configs directory");
         rootCommand.AddArgument(pathArgument);
 
-        var outputDirOption = new Option<string?>(new[] { "--output-dir" }, "Output directory (config-merger mode: writes one file per leaf)");
-        var outputFileOption = new Option<string?>(new[] { "--output-file" }, "Output file path (single file mode)");
-        var printDataOption = new Option<bool>(new[] { "--print-data" }, "Print generated data to stdout");
-        var formatOption = new Option<string>(new[] { "--format" }, () => "yaml", "Output format (yaml or json)");
-        var filterOption = new Option<string[]>(new[] { "--filter" }, "Keep only these keys from the generated data");
-        var excludeOption = new Option<string[]>(new[] { "--exclude" }, "Exclude these keys from the generated data");
-        var skipInterpolationValidationOption = new Option<bool>(new[] { "--skip-interpolation-validation" }, "Skip interpolation validation");
-        var skipInterpolationsOption = new Option<bool>(new[] { "--skip-interpolation-resolving" }, "Skip interpolation resolution");
-        var skipSecretsOption = new Option<bool>(new[] { "--skip-secrets" }, "Skip secret resolution");
-        var multiLineStringOption = new Option<bool>(new[] { "--multi-line-string" }, "Use multi-line string format for YAML output");
-        var cwdOption = new Option<string?>(new[] { "--cwd" }, "Working directory for relative path resolution");
-        var enclosingKeyOption = new Option<string?>(new[] { "--enclosing-key" }, "Wrap output under this key");
-        var removeEnclosingKeyOption = new Option<string?>(new[] { "--remove-enclosing-key" }, "Remove this wrapper key from output if present");
-        var levelsOption = new Option<string[]>(new[] { "--levels" }, "List of level keys (config-merger mode: env region cluster)")
+        // Required options (matching himl-config-merger exactly)
+        var outputDirOption = new Option<string>(new[] { "--output-dir" }, "output directory, where generated configs will be saved")
         {
+            IsRequired = true
+        };
+        
+        var levelsOption = new Option<string[]>(new[] { "--levels" }, "hierarchy levels, for instance: env, region, cluster")
+        {
+            IsRequired = true,
+            AllowMultipleArgumentsPerToken = true
+        };
+        
+        var leafDirectoriesOption = new Option<string[]>(new[] { "--leaf-directories" }, "leaf directories, for instance: cluster")
+        {
+            IsRequired = true,
             AllowMultipleArgumentsPerToken = true
         };
 
+        // Optional options (matching himl-config-merger exactly)
+        var enableParallelOption = new Option<bool>(new[] { "--enable-parallel" }, "Process config using multiprocessing");
+        var filterRulesKeyOption = new Option<string?>(new[] { "--filter-rules-key" }, "keep these keys from the generated data, based on the configured filter key");
+
         rootCommand.AddOption(outputDirOption);
-        rootCommand.AddOption(outputFileOption);
-        rootCommand.AddOption(printDataOption);
-        rootCommand.AddOption(formatOption);
-        rootCommand.AddOption(filterOption);
-        rootCommand.AddOption(excludeOption);
-        rootCommand.AddOption(skipInterpolationValidationOption);
-        rootCommand.AddOption(skipInterpolationsOption);
-        rootCommand.AddOption(skipSecretsOption);
-        rootCommand.AddOption(multiLineStringOption);
-        rootCommand.AddOption(cwdOption);
         rootCommand.AddOption(levelsOption);
-        rootCommand.AddOption(enclosingKeyOption);
-        rootCommand.AddOption(removeEnclosingKeyOption);
+        rootCommand.AddOption(leafDirectoriesOption);
+        rootCommand.AddOption(enableParallelOption);
+        rootCommand.AddOption(filterRulesKeyOption);
 
         // Set the handler
         rootCommand.SetHandler(async (context) =>
         {
             var path = context.ParseResult.GetValueForArgument(pathArgument);
-            var outputDir = context.ParseResult.GetValueForOption(outputDirOption);
-            var outputFile = context.ParseResult.GetValueForOption(outputFileOption);
-            var printData = context.ParseResult.GetValueForOption(printDataOption);
-            var format = context.ParseResult.GetValueForOption(formatOption)!;
-            var filters = context.ParseResult.GetValueForOption(filterOption) ?? Array.Empty<string>();
-            var excludes = context.ParseResult.GetValueForOption(excludeOption) ?? Array.Empty<string>();
-            var skipInterpolationValidation = context.ParseResult.GetValueForOption(skipInterpolationValidationOption);
-            var skipInterpolations = context.ParseResult.GetValueForOption(skipInterpolationsOption);
-            var skipSecrets = context.ParseResult.GetValueForOption(skipSecretsOption);
-            var multiLineString = context.ParseResult.GetValueForOption(multiLineStringOption);
-            var cwd = context.ParseResult.GetValueForOption(cwdOption);
-            var levels = context.ParseResult.GetValueForOption(levelsOption) ?? Array.Empty<string>();
-            var enclosingKey = context.ParseResult.GetValueForOption(enclosingKeyOption);
-            var removeEnclosingKey = context.ParseResult.GetValueForOption(removeEnclosingKeyOption);
+            var outputDir = context.ParseResult.GetValueForOption(outputDirOption)!;
+            var levels = context.ParseResult.GetValueForOption(levelsOption)!;
+            var leafDirectories = context.ParseResult.GetValueForOption(leafDirectoriesOption)!;
+            var enableParallel = context.ParseResult.GetValueForOption(enableParallelOption);
+            var filterRulesKey = context.ParseResult.GetValueForOption(filterRulesKeyOption);
 
             try
             {
-                // Determine mode: config-merger (output-dir + levels) vs single file (output-file or print-data)
-                var isConfigMergerMode = !string.IsNullOrEmpty(outputDir);
-                
-                if (isConfigMergerMode && !string.IsNullOrEmpty(outputDir))
-                {
-                    // Config-merger mode: scan hierarchy and write one file per leaf
-                    if (levels.Length == 0)
-                    {
-                        Console.Error.WriteLine("--levels must be provided when using --output-dir (config-merger mode)");
-                        context.ExitCode = 2;
-                        return;
-                    }
-                    
-                    await RunConfigMergerMode(path, outputDir, levels, format, filters, excludes, 
-                        skipInterpolations, skipSecrets, multiLineString, cwd, enclosingKey, 
-                        removeEnclosingKey, context);
-                }
-                else
-                {
-                    // Single file mode: process one path and output to file or stdout
-                    if (string.IsNullOrEmpty(outputFile) && !printData)
-                    {
-                        printData = true; // Default to printing if no output file specified
-                    }
-                    
-                    await RunSingleFileMode(path, outputFile, printData, format, filters, excludes, 
-                        skipInterpolations, skipSecrets, skipInterpolationValidation, multiLineString, 
-                        cwd, enclosingKey, removeEnclosingKey, context);
-                }
+                await RunConfigMerger(path, outputDir, levels, leafDirectories, enableParallel, filterRulesKey, context);
             }
             catch (Exception ex)
             {
@@ -126,84 +84,21 @@ public class CliApp
         return await rootCommand.InvokeAsync(args);
     }
 
-    private async Task RunSingleFileMode(string path, string? outputFile, bool printData, string format,
-        string[] filters, string[] excludes, bool skipInterpolations, bool skipSecrets, 
-        bool skipInterpolationValidation, bool multiLineString, string? cwd, string? enclosingKey,
-        string? removeEnclosingKey, InvocationContext context)
+    private async Task RunConfigMerger(string path, string outputDir, string[] levels, string[] leafDirectories, 
+        bool enableParallel, string? filterRulesKey, InvocationContext context)
     {
-        var host = CreateHost();
-        var processor = host.Services.GetRequiredService<IConfigurationProcessor>();
-        var formatter = host.Services.GetRequiredService<IOutputFormatter>();
-
-        // Parse output format
-        if (!Enum.TryParse<OutputFormat>(format, true, out var outputFormat))
+        if (!Directory.Exists(path))
         {
-            Console.Error.WriteLine($"Invalid output format: {format}");
-            context.ExitCode = 1;
-            return;
+            throw new ArgumentException($"Path does not exist: {path}");
         }
 
-        var options = new HimlOptions
-        {
-            Filters = filters.ToList(),
-            ExcludeKeys = excludes.ToList(),
-            SkipInterpolations = skipInterpolations,
-            SkipSecrets = skipSecrets,
-            MultiLineString = multiLineString,
-            WorkingDirectory = string.IsNullOrEmpty(cwd) ? null : cwd,
-            EnclosingKey = enclosingKey,
-            RemoveEnclosingKey = removeEnclosingKey,
-            OutputFormat = outputFormat
-        };
+        // Ensure output directory exists
+        Directory.CreateDirectory(outputDir);
 
-        var result = await processor.ProcessAsync(path, options);
-
-        if (result.Errors.Any())
-        {
-            foreach (var error in result.Errors)
-            {
-                Console.Error.WriteLine($"Error: {error}");
-            }
-            context.ExitCode = 1;
-            return;
-        }
-
-        // Format output
-        var outputText = outputFormat switch
-        {
-            OutputFormat.Yaml => formatter.ToYaml(result.Data, options.MultiLineString),
-            OutputFormat.Json => formatter.ToJson(result.Data, new JsonSerializerOptions { WriteIndented = true }),
-            _ => formatter.ToYaml(result.Data, options.MultiLineString)
-        };
-
-        if (printData)
-        {
-            Console.WriteLine(outputText);
-        }
-
-        if (!string.IsNullOrEmpty(outputFile))
-        {
-            await File.WriteAllTextAsync(outputFile, outputText);
-        }
-    }
-
-    private async Task RunConfigMergerMode(string path, string outputDir, string[] levels, string format,
-        string[] filters, string[] excludes, bool skipInterpolations, bool skipSecrets, 
-        bool multiLineString, string? cwd, string? enclosingKey, string? removeEnclosingKey,
-        InvocationContext context)
-    {
         var host = CreateHost();
         var processor = host.Services.GetRequiredService<IConfigurationProcessor>();
         var formatter = host.Services.GetRequiredService<IOutputFormatter>();
         var logger = host.Services.GetRequiredService<ILogger<CliApp>>();
-
-        // Parse output format
-        if (!Enum.TryParse<OutputFormat>(format, true, out var outputFormat))
-        {
-            Console.Error.WriteLine($"Invalid output format: {format}");
-            context.ExitCode = 1;
-            return;
-        }
 
         logger.LogInformation("Scanning for leaf directories under: {Path}", path);
 
@@ -213,26 +108,22 @@ public class CliApp
         {
             candidateDirs.AddRange(Directory.GetDirectories(path, "*", SearchOption.AllDirectories));
         }
-        else
-        {
-            Console.Error.WriteLine($"Input path does not exist or is not a directory: {path}");
-            context.ExitCode = 2;
-            return;
-        }
 
         var leafDirs = new List<string>();
 
         foreach (var dir in candidateDirs)
         {
-            // Determine relative path to the provided root so extraction yields keys like env=dev
+            // Determine relative path to the provided root
             var rel = Path.GetRelativePath(path, dir);
             var relForExtraction = rel == "." ? string.Empty : rel;
 
             var values = himl.core.Utils.DirectoryHierarchy.ExtractValuesFromPath(relForExtraction);
 
-            // Check if all requested levels are present in the extracted values
+            // Check if all requested levels are present AND if this is a leaf directory
             var hasAllLevels = levels.All(l => values.ContainsKey(l));
-            if (hasAllLevels)
+            var isLeafDirectory = leafDirectories.Any(ld => values.ContainsKey(ld));
+            
+            if (hasAllLevels && isLeafDirectory)
             {
                 leafDirs.Add(dir);
             }
@@ -242,15 +133,15 @@ public class CliApp
 
         var baseOptions = new HimlOptions
         {
-            Filters = filters.ToList(),
-            ExcludeKeys = excludes.ToList(),
-            SkipInterpolations = skipInterpolations,
-            SkipSecrets = skipSecrets,
-            MultiLineString = multiLineString,
-            WorkingDirectory = string.IsNullOrEmpty(cwd) ? null : cwd,
-            EnclosingKey = enclosingKey,
-            RemoveEnclosingKey = removeEnclosingKey,
-            OutputFormat = outputFormat
+            Filters = new List<string>(),
+            ExcludeKeys = new List<string>(),
+            SkipInterpolations = false,
+            SkipSecrets = false,
+            MultiLineString = false,
+            WorkingDirectory = null,
+            EnclosingKey = null,
+            RemoveEnclosingKey = null,
+            OutputFormat = OutputFormat.Yaml
         };
 
         foreach (var leaf in leafDirs)
@@ -270,41 +161,34 @@ public class CliApp
                 continue;
             }
 
-            // Determine output path using extracted values from the leaf relative path
+            // Apply filter if specified
+            var outputData = result.Data;
+            if (!string.IsNullOrEmpty(filterRulesKey) && outputData != null)
+            {
+                if (outputData.TryGetValue(filterRulesKey, out var filterValue) && filterValue is IDictionary<string, object?> filterDict)
+                {
+                    outputData = filterDict;
+                }
+            }
+
+            // Generate output file name using leaf directory values
             var rel = Path.GetRelativePath(path, leaf);
             var relForExtraction = rel == "." ? string.Empty : rel;
             var values = himl.core.Utils.DirectoryHierarchy.ExtractValuesFromPath(relForExtraction);
 
-            // Build output subpath: for all levels except last, create directories; last becomes filename
-            var subDirs = new List<string>();
-            foreach (var lvl in levels.Take(levels.Length - 1))
+            var fileName = string.Join("-", leafDirectories.Select(ld => 
             {
-                if (values.TryGetValue(lvl, out var v))
-                    subDirs.Add(v);
-            }
-
-            var lastLevel = levels.Last();
-            if (!values.TryGetValue(lastLevel, out var lastVal))
-            {
-                lastVal = "leaf"; // fallback
-            }
-
-            var outDir = Path.Combine(new[] { outputDir }.Concat(subDirs).ToArray());
-            Directory.CreateDirectory(outDir);
-
-            var ext = outputFormat == OutputFormat.Json ? "json" : "yaml";
-            var filename = Path.Combine(outDir, $"{lastVal}.{ext}");
-
+                values.TryGetValue(ld, out var value);
+                return value ?? "unknown";
+            }).Where(v => v != "unknown")) + ".yaml";
+            
+            var outputFile = Path.Combine(outputDir, fileName);
+            
             // Write formatted output
-            var outputText = outputFormat switch
-            {
-                OutputFormat.Yaml => formatter.ToYaml(result.Data, baseOptions.MultiLineString),
-                OutputFormat.Json => formatter.ToJson(result.Data, new JsonSerializerOptions { WriteIndented = true }),
-                _ => formatter.ToYaml(result.Data, baseOptions.MultiLineString)
-            };
-
-            await File.WriteAllTextAsync(filename, outputText);
-            logger.LogInformation("Stored generated config to: {File}", filename);
+            var outputText = formatter.ToYaml(outputData ?? new Dictionary<string, object?>(), false);
+            
+            await File.WriteAllTextAsync(outputFile, outputText);
+            logger.LogInformation("Generated: {File}", outputFile);
         }
 
         logger.LogInformation("Run completed");
