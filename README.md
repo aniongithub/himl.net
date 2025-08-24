@@ -71,7 +71,7 @@ dotnet tool install --global --add-source ./nupkg himl.cli --version 1.0.0
 Then use the tool:
 
 ```sh
-himl --help
+himl.cli --help
 ```
 
 ### From Source
