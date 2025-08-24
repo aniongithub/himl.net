@@ -44,7 +44,10 @@ public class CliApp
         var cwdOption = new Option<string?>(new[] { "--cwd" }, "Working directory for relative path resolution");
         var enclosingKeyOption = new Option<string?>(new[] { "--enclosing-key" }, "Wrap output under this key");
         var removeEnclosingKeyOption = new Option<string?>(new[] { "--remove-enclosing-key" }, "Remove this wrapper key from output if present");
-        var levelsOption = new Option<string[]>(new[] { "--levels" }, "List of level keys (config-merger mode: env region cluster)");
+        var levelsOption = new Option<string[]>(new[] { "--levels" }, "List of level keys (config-merger mode: env region cluster)")
+        {
+            AllowMultipleArgumentsPerToken = true
+        };
 
         rootCommand.AddOption(outputDirOption);
         rootCommand.AddOption(outputFileOption);

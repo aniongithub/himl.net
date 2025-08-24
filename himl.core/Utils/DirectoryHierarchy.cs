@@ -7,10 +7,11 @@ public static class DirectoryHierarchy
 {
     /// <summary>
     /// Generate a list of directories from root to the specified path for configuration merging
+    /// This matches the original Adobe HIML behavior: processes path components sequentially without walking up
     /// </summary>
-    /// <param name="path">Target path</param>
+    /// <param name="path">Target path (can be root or leaf)</param>
     /// <param name="workingDirectory">Working directory to resolve relative paths</param>
-    /// <returns>List of directories in hierarchy order (root first)</returns>
+    /// <returns>List of directories in hierarchy order (root first, leaf last)</returns>
     public static IList<string> GenerateHierarchy(string path, string? workingDirectory = null)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -22,36 +23,59 @@ public static class DirectoryHierarchy
         if (!Directory.Exists(resolvedPath))
             throw new DirectoryNotFoundException($"Directory not found: {resolvedPath}");
 
-        // First, find all directories from the target path up to the configuration root
-        var pathsFromTargetToRoot = new List<string>();
-        var currentPath = resolvedPath;
-
-        // Walk up the directory tree to collect all paths
-        while (!string.IsNullOrEmpty(currentPath))
-        {
-            pathsFromTargetToRoot.Add(currentPath);
-            
-            var parent = Directory.GetParent(currentPath)?.FullName;
-            if (parent == currentPath) // Reached filesystem root
-                break;
-                
-            currentPath = parent;
-        }
-
-        // Now build the hierarchy from root to target, only including directories with config files
+        // Match Adobe HIML behavior: process path components sequentially
+        // Split the path into components and build hierarchy from each component
+        var hierarchy = BuildHierarchyFromPathComponents(resolvedPath, workingDirectory);
+        
+        return hierarchy;
+    }
+    
+    /// <summary>
+    /// Build hierarchy by processing path components sequentially, matching Adobe HIML behavior
+    /// </summary>
+    private static IList<string> BuildHierarchyFromPathComponents(string targetPath, string? workingDirectory)
+    {
         var hierarchy = new List<string>();
         
-        // Reverse the list to go from root to target
-        pathsFromTargetToRoot.Reverse();
+        // Get the working directory (cwd in Adobe HIML)
+        var baseDirectory = workingDirectory ?? Environment.CurrentDirectory;
         
-        foreach (var dir in pathsFromTargetToRoot)
+        // Get relative path from working directory to target
+        var relativePath = Path.GetRelativePath(baseDirectory, targetPath);
+        
+        // If the path is just ".", it means we're processing the working directory itself
+        if (relativePath == ".")
         {
-            if (HasConfigurationFiles(dir))
+            if (HasConfigurationFiles(baseDirectory))
             {
-                hierarchy.Add(dir);
+                hierarchy.Add(baseDirectory);
+            }
+            return hierarchy;
+        }
+        
+        // Split the relative path into segments
+        var segments = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, 
+            StringSplitOptions.RemoveEmptyEntries);
+        
+        // Process each path component sequentially (like Adobe HIML does with os.chdir)
+        var currentPath = baseDirectory;
+        
+        // Check if the base directory has config files
+        if (HasConfigurationFiles(currentPath))
+        {
+            hierarchy.Add(currentPath);
+        }
+        
+        // Process each segment in order
+        foreach (var segment in segments)
+        {
+            currentPath = Path.Combine(currentPath, segment);
+            if (Directory.Exists(currentPath) && HasConfigurationFiles(currentPath))
+            {
+                hierarchy.Add(currentPath);
             }
         }
-
+        
         return hierarchy;
     }
 

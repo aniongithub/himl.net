@@ -46,11 +46,11 @@ public sealed class Examples
         // Arrange
         var options = new HimlOptions
         {
-            WorkingDirectory = Path.Combine(_examplesPath, "simple", "production")
+            WorkingDirectory = _examplesPath  // Set working directory to examples folder
         };
 
-        // Act
-        var result = await _processor.ProcessAsync(options.WorkingDirectory!, options);
+        // Act - Pass relative path like the README example shows
+        var result = await _processor.ProcessAsync("simple/production", options);
 
         // Assert
         Assert.AreEqual(0, result.Errors.Count, $"Errors: {string.Join(", ", result.Errors)}");
@@ -72,6 +72,7 @@ public sealed class Examples
         Assert.IsTrue(result.Data.ContainsKey("deep"));
         var deep = result.Data["deep"] as IDictionary<string, object?>;
         Assert.IsNotNull(deep);
+        
         Assert.AreEqual("v1", deep["key1"]);
         Assert.AreEqual("v2", deep["key2"]);
         Assert.AreEqual("v3", deep["key3"]);
@@ -94,44 +95,56 @@ public sealed class Examples
     public async Task ComplexExample_DevUsEast1Cluster2_ShouldMergeCorrectly()
     {
         // Arrange
-        var options = new HimlOptions
-        {
-            WorkingDirectory = Path.Combine(_examplesPath, "complex", "env=dev", "region=us-east-1", "cluster=cluster2")
-        };
-
-        // Act
-        var result = await _processor.ProcessAsync(options.WorkingDirectory!, options);
-
-        // Assert
-        Assert.AreEqual(0, result.Errors.Count, $"Errors: {string.Join(", ", result.Errors)}");
+        // Set USER environment variable for the test
+        var originalUser = Environment.GetEnvironmentVariable("USER");
+        Environment.SetEnvironmentVariable("USER", "testuser");
         
-        // Check basic merged values
-        Assert.AreEqual("dev", result.Data["env"]);
-        Assert.AreEqual("us-east-1", result.Data["region"]); 
-        Assert.AreEqual("cluster2", result.Data["cluster"]);
-        
-        // Check if cluster_info exists (from the actual file structure)
-        if (result.Data.ContainsKey("cluster_info"))
+        try
         {
-            var clusterInfo = result.Data["cluster_info"] as IDictionary<string, object?>;
-            Assert.IsNotNull(clusterInfo, "cluster_info should not be null");
-            
-            // Check if description contains interpolated values
-            if (clusterInfo.ContainsKey("description"))
+            var options = new HimlOptions
             {
-                var description = clusterInfo["description"]?.ToString();
-                Assert.IsTrue(description?.Contains("cluster2"), $"Description should contain cluster2. Actual: {description}");
+                WorkingDirectory = _examplesPath  // Set working directory to examples folder
+            };
+
+            // Act - Pass relative path like the README example shows
+            var result = await _processor.ProcessAsync("complex/env=dev/region=us-east-1/cluster=cluster2", options);
+
+            // Assert
+            Assert.AreEqual(0, result.Errors.Count, $"Errors: {string.Join(", ", result.Errors)}");
+            
+            // Check basic merged values
+            Assert.AreEqual("dev", result.Data["env"]);
+            Assert.AreEqual("us-east-1", result.Data["region"]); 
+            Assert.AreEqual("cluster2", result.Data["cluster"]);
+            
+            // Check if cluster_info exists (from the actual file structure)
+            if (result.Data.ContainsKey("cluster_info"))
+            {
+                var clusterInfo = result.Data["cluster_info"] as IDictionary<string, object?>;
+                Assert.IsNotNull(clusterInfo, "cluster_info should not be null");
+                
+                // Check if description contains interpolated values
+                if (clusterInfo.ContainsKey("description"))
+                {
+                    var description = clusterInfo["description"]?.ToString();
+                    Assert.IsTrue(description?.Contains("cluster2"), $"Description should contain cluster2. Actual: {description}");
+                }
+                
+                if (clusterInfo.ContainsKey("node_type"))
+                {
+                    Assert.AreEqual("c3.2xlarge", clusterInfo["node_type"]);
+                }
             }
             
-            if (clusterInfo.ContainsKey("node_type"))
-            {
-                Assert.AreEqual("c3.2xlarge", clusterInfo["node_type"]);
-            }
+            // Check environment variable interpolation is working
+            Assert.IsTrue(result.Data.ContainsKey("foo"));
+            Assert.IsTrue(result.Data["foo"]?.ToString()?.Contains("-bar-baz"));
         }
-        
-        // Check environment variable interpolation is working
-        Assert.IsTrue(result.Data.ContainsKey("foo"));
-        Assert.IsTrue(result.Data["foo"]?.ToString()?.Contains("-bar-baz"));
+        finally
+        {
+            // Restore original USER environment variable
+            Environment.SetEnvironmentVariable("USER", originalUser);
+        }
     }
 
     /// <summary>
@@ -143,16 +156,16 @@ public sealed class Examples
         // Arrange
         var options = new HimlOptions
         {
-            WorkingDirectory = Path.Combine(_examplesPath, "simple", "production")
+            WorkingDirectory = _examplesPath  // Set working directory to examples folder
         };
 
         // Act - Test YAML output
         options.OutputFormat = OutputFormat.Yaml;
-        var yamlResult = await _processor.ProcessAsync(options.WorkingDirectory!, options);
+        var yamlResult = await _processor.ProcessAsync("simple/production", options);
         
         // Act - Test JSON output
         options.OutputFormat = OutputFormat.Json;
-        var jsonResult = await _processor.ProcessAsync(options.WorkingDirectory!, options);
+        var jsonResult = await _processor.ProcessAsync("simple/production", options);
 
         // Assert
         Assert.AreEqual(0, yamlResult.Errors.Count);
@@ -183,12 +196,12 @@ public sealed class Examples
         // Arrange
         var options = new HimlOptions
         {
-            WorkingDirectory = Path.Combine(_examplesPath, "simple", "production"),
+            WorkingDirectory = _examplesPath,  // Set working directory to examples folder
             Filters = { "env", "deep" }
         };
 
         // Act
-        var result = await _processor.ProcessAsync(options.WorkingDirectory!, options);
+        var result = await _processor.ProcessAsync("simple/production", options);
 
         // Assert
         Assert.AreEqual(0, result.Errors.Count, $"Errors: {string.Join(", ", result.Errors)}");
