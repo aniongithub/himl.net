@@ -344,6 +344,16 @@ auth:
 secrets: "${vault:/secret/data/app}"  # Entire secret object
 ```
 
+#### Google Secret Manager
+
+```yaml
+database:
+  password: "${gcp-sm://my-project/db-password/latest}"
+  apiKey: "${gcp-sm://my-project/api-key/3}"  # Specific version
+application:
+  serviceAccount: "${gcp-sm://prod-project/service-account/latest}"
+```
+
 ### File inheritance
 
 Use the `extends` keyword to inherit from other files:
