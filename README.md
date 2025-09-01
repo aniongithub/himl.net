@@ -36,8 +36,10 @@ The idea came from puppet's hiera, originally implemented by [Adobe HIML](https:
       - [AWS SSM](#aws-ssm)
       - [AWS S3](#aws-s3)
       - [Vault](#vault)
+      - [Google Secret Manager](#google-secret-manager)
     - [File inheritance](#file-inheritance)
     - [Merge strategies](#merge-strategies)
+    - [File merge modes](#file-merge-modes)
   - [Configuration](#configuration)
 
 ## Installation
@@ -107,11 +109,30 @@ var processor = new ConfigurationProcessor(/* dependencies via DI */);
 var options = new HimlOptions
 {
     OutputFormat = OutputFormat.Yaml,
-    ListMergeStrategy = ListMergeStrategy.AppendUnique
+    ListMergeStrategy = ListMergeStrategy.AppendUnique,
+    MergeMode = MergeMode.AllFiles  // Default: merge all files into one output
 };
 
 var result = await processor.ProcessAsync("examples/simple/production", options);
 Console.WriteLine(result.Output);
+```
+
+For multiple outputs using same-named file merging:
+
+```csharp
+var options = new HimlOptions
+{
+    MergeMode = MergeMode.SameNamedFiles  // Produce multiple outputs
+};
+
+var result = await processor.ProcessAsync("examples/multi-file/env=dev/region=us-east-1", options);
+
+// Access individual application configurations
+foreach (var output in result.MultipleOutputs)
+{
+    Console.WriteLine($"=== {output.Key} Configuration ===");
+    Console.WriteLine(result.MultipleFormattedOutputs[output.Key]);
+}
 ```
 
 Directory structure:
@@ -180,6 +201,7 @@ builder.Configuration.AddHiml("config/production", options =>
 {
     options.ListMergeStrategy = ListMergeStrategy.AppendUnique;
     options.DictMergeStrategy = DictMergeStrategy.Merge;
+    options.MergeMode = MergeMode.AllFiles;  // Default merge mode
 });
 
 var host = builder.Build();
@@ -229,6 +251,7 @@ himl.cli <path> --output-dir <output-dir> --levels <levels...> --leaf-directorie
 
 - `--enable-parallel` - Process config using multiprocessing
 - `--filter-rules-key` - Keep only these keys from the generated data, based on the configured filter key
+- `--merge-mode` - File merging mode: `all-files` (default) or `same-named-files`
 
 #### Examples
 
@@ -247,6 +270,39 @@ himl.cli test-config --output-dir /tmp/output --levels env --leaf-directories en
 ```
 
 This will generate files like `dev.yaml` based on directories like `env=dev/`.
+
+#### Merge Modes
+
+The CLI supports two different merge modes:
+
+**All Files Mode (default)**: Merges all YAML files in each directory into a single output file per leaf.
+
+```sh
+himl.cli examples/complex --output-dir /tmp/output --levels env region cluster --leaf-directories cluster --merge-mode all-files
+```
+
+This generates: `cluster1.yaml`, `cluster2.yaml`, etc., with all configuration merged into each file.
+
+**Same-Named Files Mode**: Merges only same-named YAML files across the hierarchy, producing multiple output files per leaf.
+
+```sh
+himl.cli examples/multi-file --output-dir /tmp/output --levels env region --leaf-directories region --merge-mode same-named-files
+```
+
+With this structure:
+```
+examples/multi-file/
+├── app1.yaml
+├── app2.yaml
+└── env=dev/
+    ├── app1.yaml
+    ├── app2.yaml
+    └── region=us-east-1/
+        ├── app1.yaml
+        └── app2.yaml
+```
+
+This generates: `us-east-1-app1.yaml`, `us-east-1-app2.yaml`, where each file contains only the merged configuration from files with the same name across the hierarchy.
 
 ## Features
 
@@ -385,6 +441,38 @@ var options = new HimlOptions
 };
 ```
 
+### File merge modes
+
+Control how multiple files are processed and merged:
+
+```csharp
+var options = new HimlOptions
+{
+    MergeMode = MergeMode.AllFiles,        // Merge all YAML files into one output (default)
+    // MergeMode = MergeMode.SameNamedFiles, // Merge only same-named files, multiple outputs
+};
+```
+
+**All Files Mode (default)**: Merges all YAML files in each directory into a single configuration. Later files override values from earlier files.
+
+**Same-Named Files Mode**: Groups files by name across the hierarchy and merges only files with the same name together. This produces multiple output configurations, one for each unique filename.
+
+```csharp
+// Example: Same-named files mode
+var processor = new ConfigurationProcessor(/* dependencies */);
+var options = new HimlOptions { MergeMode = MergeMode.SameNamedFiles };
+var result = await processor.ProcessAsync("config/env=prod/region=us-east-1", options);
+
+// Access multiple outputs
+foreach (var output in result.MultipleOutputs)
+{
+    var filename = output.Key;        // e.g., "app1", "app2"
+    var config = output.Value;        // Merged configuration for that file
+    Console.WriteLine($"Configuration for {filename}:");
+    Console.WriteLine(result.MultipleFormattedOutputs[filename]);
+}
+```
+
 ## Configuration
 
 himl.net supports extensive configuration options:
@@ -410,6 +498,11 @@ var options = new HimlOptions
   
     // Output formatting
     MultiLineString = true,                            // Use YAML multi-line strings
+  
+    // Merge strategies
+    ListMergeStrategy = ListMergeStrategy.AppendUnique, // How to merge lists
+    DictMergeStrategy = DictMergeStrategy.Merge,        // How to merge dictionaries
+    MergeMode = MergeMode.AllFiles,                     // File merge mode
   
     // AWS configuration
     DefaultAwsProfile = "production"
