@@ -1,0 +1,10 @@
+env: dev
+config:
+  database:
+    host: "dev-db.example.com"
+    ssl: false
+  debug: true
+  
+resources:
+  cpu: "200m"  # Lower resources for dev
+  memory: "256Mi"

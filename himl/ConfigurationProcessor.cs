@@ -51,66 +51,30 @@ public class ConfigurationProcessor : IConfigurationProcessor
         {
             _logger.LogInformation("Processing configuration hierarchy from path: {Path}", path);
 
-            // Step 1: Generate hierarchy and load files
-            IDictionary<string, object?> mergedData;
-            
             if (File.Exists(path))
             {
                 // Single file processing
                 _logger.LogDebug("Processing single file: {Path}", path);
-                mergedData = await LoadYamlFile(path);
+                var mergedData = await LoadYamlFile(path);
+                await ProcessSingleResult(result, mergedData, path, options);
             }
             else
             {
-                // Directory hierarchy processing  
+                // Directory hierarchy processing
                 var hierarchy = core.Utils.DirectoryHierarchy.GenerateHierarchy(path, options.WorkingDirectory);
-                mergedData = await LoadAndMergeHierarchy(hierarchy, options);
+                
+                if (options.MergeMode == MergeMode.SameNamedFiles)
+                {
+                    await ProcessSameNamedFiles(result, hierarchy, path, options);
+                }
+                else
+                {
+                    var mergedData = await LoadAndMergeHierarchy(hierarchy, options);
+                    await ProcessSingleResult(result, mergedData, path, options);
+                }
             }
-
-            // Step 2: Apply path-based values
-            ApplyPathValues(mergedData, path);
-
-            // Step 3: Exclude keys before interpolation
-            if (options.ExcludeKeys.Any())
-            {
-                ExcludeKeys(mergedData, options.ExcludeKeys);
-            }
-
-            // Step 4: Resolve interpolations
-            if (!options.SkipInterpolations)
-            {
-                mergedData = await _interpolationResolver.ResolveAsync(mergedData, options);
-            }
-
-            // Step 5: Filter keys after interpolation
-            if (options.Filters.Any())
-            {
-                FilterData(mergedData, options.Filters);
-            }
-
-            // Step 6: Apply enclosing key operations
-            if (!string.IsNullOrEmpty(options.RemoveEnclosingKey))
-            {
-                RemoveEnclosingKey(mergedData, options.RemoveEnclosingKey);
-            }
-
-            if (!string.IsNullOrEmpty(options.EnclosingKey))
-            {
-                AddEnclosingKey(mergedData, options.EnclosingKey);
-            }
-
-            result.Data = mergedData;
-            
-            // Format output based on specified format
-            result.Output = options.OutputFormat switch
-            {
-                OutputFormat.Json => _formatter.ToJson(mergedData),
-                OutputFormat.Yaml => _formatter.ToYaml(mergedData, options.MultiLineString),
-                _ => _formatter.ToYaml(mergedData, options.MultiLineString)
-            };
             
             _logger.LogInformation("Configuration processing completed successfully");
-
             return result;
         }
         catch (Exception ex)
@@ -244,5 +208,140 @@ public class ConfigurationProcessor : IConfigurationProcessor
         var wrappedData = new Dictionary<string, object?>(data);
         data.Clear();
         data[enclosingKey] = wrappedData;
+    }
+
+    private async Task ProcessSingleResult(HimlResult result, IDictionary<string, object?> mergedData, string path, HimlOptions options)
+    {
+        // Step 2: Apply path-based values
+        ApplyPathValues(mergedData, path);
+
+        // Step 3: Exclude keys before interpolation
+        if (options.ExcludeKeys.Any())
+        {
+            ExcludeKeys(mergedData, options.ExcludeKeys);
+        }
+
+        // Step 4: Resolve interpolations
+        if (!options.SkipInterpolations)
+        {
+            mergedData = await _interpolationResolver.ResolveAsync(mergedData, options);
+        }
+
+        // Step 5: Filter keys after interpolation
+        if (options.Filters.Any())
+        {
+            FilterData(mergedData, options.Filters);
+        }
+
+        // Step 6: Apply enclosing key operations
+        if (!string.IsNullOrEmpty(options.RemoveEnclosingKey))
+        {
+            RemoveEnclosingKey(mergedData, options.RemoveEnclosingKey);
+        }
+
+        if (!string.IsNullOrEmpty(options.EnclosingKey))
+        {
+            AddEnclosingKey(mergedData, options.EnclosingKey);
+        }
+
+        result.Data = mergedData;
+        
+        // Format output based on specified format
+        result.Output = options.OutputFormat switch
+        {
+            OutputFormat.Json => _formatter.ToJson(mergedData),
+            OutputFormat.Yaml => _formatter.ToYaml(mergedData, options.MultiLineString),
+            _ => _formatter.ToYaml(mergedData, options.MultiLineString)
+        };
+    }
+
+    private async Task ProcessSameNamedFiles(HimlResult result, IList<string> hierarchy, string path, HimlOptions options)
+    {
+        // Collect all unique filenames across the hierarchy
+        var allFilenames = new HashSet<string>();
+        var filesByName = new Dictionary<string, List<string>>();
+
+        foreach (var directory in hierarchy)
+        {
+            var files = core.Utils.DirectoryHierarchy.GetConfigurationFiles(directory);
+            foreach (var file in files)
+            {
+                var filename = Path.GetFileNameWithoutExtension(file);
+                allFilenames.Add(filename);
+                
+                if (!filesByName.ContainsKey(filename))
+                {
+                    filesByName[filename] = new List<string>();
+                }
+                filesByName[filename].Add(file);
+            }
+        }
+
+        // Process each filename separately
+        foreach (var filename in allFilenames)
+        {
+            _logger.LogDebug("Processing same-named files for: {Filename}", filename);
+            
+            IDictionary<string, object?> mergedData = new Dictionary<string, object?>();
+            
+            // Merge all files with this name across the hierarchy
+            foreach (var file in filesByName[filename])
+            {
+                _logger.LogDebug("Loading configuration file: {File}", file);
+                var fileData = await LoadYamlFile(file);
+                mergedData = _merger.Merge(mergedData, fileData, options);
+            }
+
+            // Process this merged data through the full pipeline
+            await ProcessSingleFileMergeResult(result, mergedData, filename, path, options);
+        }
+    }
+
+    private async Task ProcessSingleFileMergeResult(HimlResult result, IDictionary<string, object?> mergedData, string filename, string path, HimlOptions options)
+    {
+        // Step 2: Apply path-based values
+        ApplyPathValues(mergedData, path);
+
+        // Step 3: Exclude keys before interpolation
+        if (options.ExcludeKeys.Any())
+        {
+            ExcludeKeys(mergedData, options.ExcludeKeys);
+        }
+
+        // Step 4: Resolve interpolations
+        if (!options.SkipInterpolations)
+        {
+            mergedData = await _interpolationResolver.ResolveAsync(mergedData, options);
+        }
+
+        // Step 5: Filter keys after interpolation
+        if (options.Filters.Any())
+        {
+            FilterData(mergedData, options.Filters);
+        }
+
+        // Step 6: Apply enclosing key operations
+        if (!string.IsNullOrEmpty(options.RemoveEnclosingKey))
+        {
+            RemoveEnclosingKey(mergedData, options.RemoveEnclosingKey);
+        }
+
+        if (!string.IsNullOrEmpty(options.EnclosingKey))
+        {
+            AddEnclosingKey(mergedData, options.EnclosingKey);
+        }
+
+        // Store in multiple outputs
+        result.MultipleOutputs[filename] = mergedData;
+        
+        // Format output based on specified format
+        var formattedOutput = options.OutputFormat switch
+        {
+            OutputFormat.Json => _formatter.ToJson(mergedData),
+            OutputFormat.Yaml => _formatter.ToYaml(mergedData, options.MultiLineString),
+            _ => _formatter.ToYaml(mergedData, options.MultiLineString)
+        };
+        
+        result.MultipleFormattedOutputs[filename] = formattedOutput;
     }
 }

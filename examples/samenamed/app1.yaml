@@ -1,0 +1,20 @@
+app_name: app1
+app_type: web
+version: "1.0.0"
+
+config:
+  database:
+    host: localhost
+    port: 5432
+    name: app1_db
+  cache:
+    type: redis
+    ttl: 3600
+  
+features:
+  - logging
+  - monitoring
+  
+resources:
+  cpu: "500m"
+  memory: "512Mi"

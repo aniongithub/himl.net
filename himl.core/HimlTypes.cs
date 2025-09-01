@@ -75,6 +75,22 @@ public enum OutputFormat
 }
 
 /// <summary>
+/// File merging mode for configuration processing
+/// </summary>
+public enum MergeMode
+{
+    /// <summary>
+    /// Merge all YAML files in each directory into a single output (default behavior)
+    /// </summary>
+    AllFiles,
+    
+    /// <summary>
+    /// Merge only same-named YAML files across the hierarchy, producing multiple outputs per leaf
+    /// </summary>
+    SameNamedFiles
+}
+
+/// <summary>
 /// Configuration options for HIML processing
 /// </summary>
 public class HimlOptions
@@ -145,6 +161,11 @@ public class HimlOptions
     public DictMergeStrategy DictMergeStrategy { get; set; } = DictMergeStrategy.Merge;
     
     /// <summary>
+    /// File merging mode
+    /// </summary>
+    public MergeMode MergeMode { get; set; } = MergeMode.AllFiles;
+    
+    /// <summary>
     /// Default AWS profile for secret resolution
     /// </summary>
     public string? DefaultAwsProfile { get; set; }
@@ -156,9 +177,15 @@ public class HimlOptions
 public class HimlResult
 {
     /// <summary>
-    /// The processed configuration data
+    /// The processed configuration data (for single output mode)
     /// </summary>
     public IDictionary<string, object?> Data { get; set; } = new Dictionary<string, object?>();
+    
+    /// <summary>
+    /// Multiple outputs when using same-named file merging mode
+    /// Key is the filename (without extension), Value is the merged configuration
+    /// </summary>
+    public IDictionary<string, IDictionary<string, object?>> MultipleOutputs { get; set; } = new Dictionary<string, IDictionary<string, object?>>();
     
     /// <summary>
     /// Any warnings encountered during processing
@@ -179,6 +206,12 @@ public class HimlResult
     /// The formatted output string (for compatibility with tests)
     /// </summary>
     public string? Output { get; set; }
+    
+    /// <summary>
+    /// Multiple formatted outputs when using same-named file merging mode
+    /// Key is the filename (without extension), Value is the formatted output
+    /// </summary>
+    public IDictionary<string, string> MultipleFormattedOutputs { get; set; } = new Dictionary<string, string>();
     
     /// <summary>
     /// First error message (for compatibility with tests)

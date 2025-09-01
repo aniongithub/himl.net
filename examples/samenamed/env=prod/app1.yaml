@@ -1,0 +1,12 @@
+env: prod
+config:
+  database:
+    host: "prod-db.example.com"
+    ssl: true
+    pool_size: 20
+  debug: false
+  monitoring: true
+  
+resources:
+  cpu: "1000m"  # Higher resources for prod
+  memory: "1Gi"

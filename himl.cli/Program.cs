@@ -52,12 +52,14 @@ public class CliApp
         // Optional options (matching himl-config-merger exactly)
         var enableParallelOption = new Option<bool>(new[] { "--enable-parallel" }, "Process config using multiprocessing");
         var filterRulesKeyOption = new Option<string?>(new[] { "--filter-rules-key" }, "keep these keys from the generated data, based on the configured filter key");
+        var mergeModeOption = new Option<string>(new[] { "--merge-mode" }, () => "all-files", "File merging mode: 'all-files' (default) or 'same-named-files'");
 
         rootCommand.AddOption(outputDirOption);
         rootCommand.AddOption(levelsOption);
         rootCommand.AddOption(leafDirectoriesOption);
         rootCommand.AddOption(enableParallelOption);
         rootCommand.AddOption(filterRulesKeyOption);
+        rootCommand.AddOption(mergeModeOption);
 
         // Set the handler
         rootCommand.SetHandler(async (context) =>
@@ -68,10 +70,11 @@ public class CliApp
             var leafDirectories = context.ParseResult.GetValueForOption(leafDirectoriesOption)!;
             var enableParallel = context.ParseResult.GetValueForOption(enableParallelOption);
             var filterRulesKey = context.ParseResult.GetValueForOption(filterRulesKeyOption);
+            var mergeMode = context.ParseResult.GetValueForOption(mergeModeOption)!;
 
             try
             {
-                await RunConfigMerger(path, outputDir, levels, leafDirectories, enableParallel, filterRulesKey, context);
+                await RunConfigMerger(path, outputDir, levels, leafDirectories, enableParallel, filterRulesKey, mergeMode, context);
             }
             catch (Exception ex)
             {
@@ -85,7 +88,7 @@ public class CliApp
     }
 
     private async Task RunConfigMerger(string path, string outputDir, string[] levels, string[] leafDirectories, 
-        bool enableParallel, string? filterRulesKey, InvocationContext context)
+        bool enableParallel, string? filterRulesKey, string mergeMode, InvocationContext context)
     {
         if (!Directory.Exists(path))
         {
@@ -141,7 +144,13 @@ public class CliApp
             WorkingDirectory = null,
             EnclosingKey = null,
             RemoveEnclosingKey = null,
-            OutputFormat = OutputFormat.Yaml
+            OutputFormat = OutputFormat.Yaml,
+            MergeMode = mergeMode.ToLower() switch
+            {
+                "same-named-files" => MergeMode.SameNamedFiles,
+                "all-files" => MergeMode.AllFiles,
+                _ => MergeMode.AllFiles
+            }
         };
 
         foreach (var leaf in leafDirs)
@@ -161,34 +170,77 @@ public class CliApp
                 continue;
             }
 
-            // Apply filter if specified
-            var outputData = result.Data;
-            if (!string.IsNullOrEmpty(filterRulesKey) && outputData != null)
+            if (baseOptions.MergeMode == MergeMode.SameNamedFiles)
             {
-                if (outputData.TryGetValue(filterRulesKey, out var filterValue) && filterValue is IDictionary<string, object?> filterDict)
+                // Handle multiple outputs
+                foreach (var output in result.MultipleOutputs)
                 {
-                    outputData = filterDict;
+                    var filename = output.Key;
+                    var outputData = output.Value;
+
+                    // Apply filter if specified
+                    if (!string.IsNullOrEmpty(filterRulesKey) && outputData != null)
+                    {
+                        if (outputData.TryGetValue(filterRulesKey, out var filterValue) && filterValue is IDictionary<string, object?> filterDict)
+                        {
+                            outputData = filterDict;
+                        }
+                    }
+
+                    // Generate output file name using leaf directory values and filename
+                    var rel = Path.GetRelativePath(path, leaf);
+                    var relForExtraction = rel == "." ? string.Empty : rel;
+                    var values = himl.core.Utils.DirectoryHierarchy.ExtractValuesFromPath(relForExtraction);
+
+                    var leafName = string.Join("-", leafDirectories.Select(ld => 
+                    {
+                        values.TryGetValue(ld, out var value);
+                        return value ?? "unknown";
+                    }).Where(v => v != "unknown"));
+
+                    var outputFileName = $"{leafName}-{filename}.yaml";
+                    var outputFile = Path.Combine(outputDir, outputFileName);
+                    
+                    // Write formatted output
+                    var outputText = formatter.ToYaml(outputData ?? new Dictionary<string, object?>(), false);
+                    
+                    await File.WriteAllTextAsync(outputFile, outputText);
+                    logger.LogInformation("Generated: {File}", outputFile);
                 }
             }
-
-            // Generate output file name using leaf directory values
-            var rel = Path.GetRelativePath(path, leaf);
-            var relForExtraction = rel == "." ? string.Empty : rel;
-            var values = himl.core.Utils.DirectoryHierarchy.ExtractValuesFromPath(relForExtraction);
-
-            var fileName = string.Join("-", leafDirectories.Select(ld => 
+            else
             {
-                values.TryGetValue(ld, out var value);
-                return value ?? "unknown";
-            }).Where(v => v != "unknown")) + ".yaml";
-            
-            var outputFile = Path.Combine(outputDir, fileName);
-            
-            // Write formatted output
-            var outputText = formatter.ToYaml(outputData ?? new Dictionary<string, object?>(), false);
-            
-            await File.WriteAllTextAsync(outputFile, outputText);
-            logger.LogInformation("Generated: {File}", outputFile);
+                // Handle single output (existing behavior)
+                var outputData = result.Data;
+                
+                // Apply filter if specified
+                if (!string.IsNullOrEmpty(filterRulesKey) && outputData != null)
+                {
+                    if (outputData.TryGetValue(filterRulesKey, out var filterValue) && filterValue is IDictionary<string, object?> filterDict)
+                    {
+                        outputData = filterDict;
+                    }
+                }
+
+                // Generate output file name using leaf directory values
+                var rel = Path.GetRelativePath(path, leaf);
+                var relForExtraction = rel == "." ? string.Empty : rel;
+                var values = himl.core.Utils.DirectoryHierarchy.ExtractValuesFromPath(relForExtraction);
+
+                var fileName = string.Join("-", leafDirectories.Select(ld => 
+                {
+                    values.TryGetValue(ld, out var value);
+                    return value ?? "unknown";
+                }).Where(v => v != "unknown")) + ".yaml";
+                
+                var outputFile = Path.Combine(outputDir, fileName);
+                
+                // Write formatted output
+                var outputText = formatter.ToYaml(outputData ?? new Dictionary<string, object?>(), false);
+                
+                await File.WriteAllTextAsync(outputFile, outputText);
+                logger.LogInformation("Generated: {File}", outputFile);
+            }
         }
 
         logger.LogInformation("Run completed");

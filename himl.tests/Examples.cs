@@ -97,9 +97,10 @@ public sealed class Examples
     public async Task ComplexExample_DevUsEast1Cluster2_ShouldMergeCorrectly()
     {
         // Arrange
-        // Set USER environment variable for the test
-        var originalUser = Environment.GetEnvironmentVariable("USER");
-        Environment.SetEnvironmentVariable("USER", "testuser");
+        // Set test-specific environment variable
+        var testVarName = "COMPLEX_TEST_USER";
+        var originalUser = Environment.GetEnvironmentVariable(testVarName);
+        Environment.SetEnvironmentVariable(testVarName, "testuser");
         
         try
         {
@@ -144,8 +145,8 @@ public sealed class Examples
         }
         finally
         {
-            // Restore original USER environment variable
-            Environment.SetEnvironmentVariable("USER", originalUser);
+            // Restore original environment variable
+            Environment.SetEnvironmentVariable(testVarName, originalUser);
         }
     }
 
@@ -220,23 +221,30 @@ public sealed class Examples
     [TestMethod]
     public async Task EnvironmentVariableDefaults_ShouldUseDefaultsWhenVarNotSet()
     {
-        // Arrange
-        var originalUser = Environment.GetEnvironmentVariable("USER");
-        var originalTest = Environment.GetEnvironmentVariable("TEST_VAR_NOT_SET");
+        // Arrange - use test-specific environment variable names
+        var testUser = "ENVDEFAULTS_TEST_USER";
+        var testVar = "ENVDEFAULTS_TEST_VAR_NOT_SET";
+        var testPath = "ENVDEFAULTS_TEST_PATH";
+        
+        var originalUser = Environment.GetEnvironmentVariable(testUser);
+        var originalTest = Environment.GetEnvironmentVariable(testVar);
+        var originalPath = Environment.GetEnvironmentVariable(testPath);
         
         try
         {
-            // Ensure USER is not set and TEST_VAR_NOT_SET doesn't exist
-            Environment.SetEnvironmentVariable("USER", null);
-            Environment.SetEnvironmentVariable("TEST_VAR_NOT_SET", null);
+            // Ensure test variables are not set
+            Environment.SetEnvironmentVariable(testUser, null);
+            Environment.SetEnvironmentVariable(testVar, null);
+            // Set a test PATH variable with a known value
+            Environment.SetEnvironmentVariable(testPath, "/usr/bin:/bin");
             
             // Create test data with environment variable defaults
             var data = new Dictionary<string, object?>
             {
-                ["user_with_default"] = "{{env(USER):defaultUser}}",
-                ["test_with_default"] = "{{env(TEST_VAR_NOT_SET):fallbackValue}}",
-                ["user_without_default"] = "{{env(USER)}}",
-                ["existing_var"] = "{{env(PATH):defaultPath}}" // PATH should exist
+                ["user_with_default"] = $"{{{{env({testUser}):defaultUser}}}}",
+                ["test_with_default"] = $"{{{{env({testVar}):fallbackValue}}}}",
+                ["user_without_default"] = $"{{{{env({testUser})}}}}",
+                ["existing_var"] = $"{{{{env({testPath}):defaultPath}}}}" // This should exist
             };
 
             var options = new HimlOptions();
@@ -245,43 +253,47 @@ public sealed class Examples
             var result = await _interpolationResolver.ResolveAsync(data, options);
 
             // Assert
-            Assert.AreEqual("defaultUser", result["user_with_default"], "Should use default when USER is not set");
-            Assert.AreEqual("fallbackValue", result["test_with_default"], "Should use default when TEST_VAR_NOT_SET is not set");
+            Assert.AreEqual("defaultUser", result["user_with_default"], "Should use default when test user var is not set");
+            Assert.AreEqual("fallbackValue", result["test_with_default"], "Should use default when test var is not set");
             Assert.AreEqual("", result["user_without_default"], "Should return empty string when no default provided");
             
-            // PATH should exist, so it should use the actual value, not the default
+            // Test path should exist, so it should use the actual value, not the default
             var pathValue = result["existing_var"]?.ToString();
-            Assert.IsNotNull(pathValue, "PATH environment variable should exist");
-            Assert.AreNotEqual("defaultPath", pathValue, "Should use actual PATH value, not default");
-            Assert.IsTrue(pathValue.Length > 0, "PATH should not be empty");
+            Assert.IsNotNull(pathValue, "Test path environment variable should exist");
+            Assert.AreNotEqual("defaultPath", pathValue, "Should use actual test path value, not default");
+            Assert.AreEqual("/usr/bin:/bin", pathValue, "Should use the set test path value");
         }
         finally
         {
             // Restore original environment variables
-            Environment.SetEnvironmentVariable("USER", originalUser);
-            Environment.SetEnvironmentVariable("TEST_VAR_NOT_SET", originalTest);
+            Environment.SetEnvironmentVariable(testUser, originalUser);
+            Environment.SetEnvironmentVariable(testVar, originalTest);
+            Environment.SetEnvironmentVariable(testPath, originalPath);
         }
     }
 
     [TestMethod]
     public async Task EnvironmentVariableDefaults_ShouldUseActualValueWhenVarIsSet()
     {
-        // Arrange
-        var originalUser = Environment.GetEnvironmentVariable("USER");
-        var originalTest = Environment.GetEnvironmentVariable("TEST_VAR_SET");
+        // Arrange - use test-specific environment variable names
+        var testUser = "ENVDEFAULTS_ACTUAL_TEST_USER";
+        var testVar = "ENVDEFAULTS_ACTUAL_TEST_VAR_SET";
+        
+        var originalUser = Environment.GetEnvironmentVariable(testUser);
+        var originalTest = Environment.GetEnvironmentVariable(testVar);
         
         try
         {
-            // Set environment variables
-            Environment.SetEnvironmentVariable("USER", "actualUser");
-            Environment.SetEnvironmentVariable("TEST_VAR_SET", "actualValue");
+            // Set test-specific environment variables
+            Environment.SetEnvironmentVariable(testUser, "actualUser");
+            Environment.SetEnvironmentVariable(testVar, "actualValue");
             
             // Create test data with environment variable defaults
             var data = new Dictionary<string, object?>
             {
-                ["user_with_default"] = "{{env(USER):defaultUser}}",
-                ["test_with_default"] = "{{env(TEST_VAR_SET):fallbackValue}}",
-                ["compound"] = "prefix-{{env(USER):defaultUser}}-suffix"
+                ["user_with_default"] = $"{{{{env({testUser}):defaultUser}}}}",
+                ["test_with_default"] = $"{{{{env({testVar}):fallbackValue}}}}",
+                ["compound"] = $"prefix-{{{{env({testUser}):defaultUser}}}}-suffix"
             };
 
             var options = new HimlOptions();
@@ -290,15 +302,130 @@ public sealed class Examples
             var result = await _interpolationResolver.ResolveAsync(data, options);
 
             // Assert
-            Assert.AreEqual("actualUser", result["user_with_default"], "Should use actual value when USER is set");
-            Assert.AreEqual("actualValue", result["test_with_default"], "Should use actual value when TEST_VAR_SET is set");
+            Assert.AreEqual("actualUser", result["user_with_default"], "Should use actual value when test user var is set");
+            Assert.AreEqual("actualValue", result["test_with_default"], "Should use actual value when test var is set");
             Assert.AreEqual("prefix-actualUser-suffix", result["compound"], "Should use actual value in compound strings");
         }
         finally
         {
             // Restore original environment variables
-            Environment.SetEnvironmentVariable("USER", originalUser);
-            Environment.SetEnvironmentVariable("TEST_VAR_SET", originalTest);
+            Environment.SetEnvironmentVariable(testUser, originalUser);
+            Environment.SetEnvironmentVariable(testVar, originalTest);
         }
+    }
+
+    /// <summary>
+    /// Test same-named file merging mode: merge only same-named YAML files
+    /// across the hierarchy to produce multiple outputs per leaf
+    /// </summary>
+    [TestMethod]
+    public async Task SameNamedFileMerging_ShouldProduceMultipleOutputs()
+    {
+        // Arrange - use the new SameNamed merge mode for multiple files/app configs
+        var testRoot = Path.Combine(_examplesPath, "samenamed");
+        var options = new HimlOptions
+        {
+            WorkingDirectory = testRoot,
+            MergeMode = MergeMode.SameNamedFiles
+        };
+
+        // Act
+        var result = await _processor.ProcessAsync(Path.Combine(testRoot, "env=dev/region=us-east-1"), options);
+
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.IsTrue(result.IsSuccess, $"Processing failed with errors: {string.Join(", ", result.Errors)}");
+        
+        // Should have multiple outputs instead of single Data
+        Assert.IsTrue(result.MultipleOutputs.Count > 0, "Should have multiple outputs");
+        
+        // Should have both app1 and app2 outputs
+        Assert.IsTrue(result.MultipleOutputs.ContainsKey("app1"), "Should contain 'app1' output");
+        Assert.IsTrue(result.MultipleOutputs.ContainsKey("app2"), "Should contain 'app2' output");
+        
+        // The app1 output should contain merged data from hierarchy
+        var app1Output = result.MultipleOutputs["app1"];
+        Assert.IsNotNull(app1Output);
+        Assert.IsTrue(app1Output.ContainsKey("env"), "app1 should contain 'env' key");
+        Assert.AreEqual("dev", app1Output["env"]);
+        Assert.IsTrue(app1Output.ContainsKey("region"), "app1 should contain 'region' key");
+        Assert.AreEqual("us-east-1", app1Output["region"]);
+        Assert.IsTrue(app1Output.ContainsKey("app_name"), "app1 should contain 'app_name' key");
+        Assert.AreEqual("app1", app1Output["app_name"]);
+        
+        // The app2 output should contain merged data from hierarchy
+        var app2Output = result.MultipleOutputs["app2"];
+        Assert.IsNotNull(app2Output);
+        Assert.IsTrue(app2Output.ContainsKey("env"), "app2 should contain 'env' key");
+        Assert.AreEqual("dev", app2Output["env"]);
+        Assert.IsTrue(app2Output.ContainsKey("region"), "app2 should contain 'region' key");
+        Assert.AreEqual("us-east-1", app2Output["region"]);
+        Assert.IsTrue(app2Output.ContainsKey("app_name"), "app2 should contain 'app_name' key");
+        Assert.AreEqual("app2", app2Output["app_name"]);
+        
+        // Should have formatted outputs too
+        Assert.IsTrue(result.MultipleFormattedOutputs.Count > 0, "Should have multiple formatted outputs");
+        Assert.IsTrue(result.MultipleFormattedOutputs.ContainsKey("app1"), "Should contain 'app1' formatted output");
+        Assert.IsTrue(result.MultipleFormattedOutputs.ContainsKey("app2"), "Should contain 'app2' formatted output");
+        
+        // Verify that the configurations are different between app1 and app2
+        var app1Config = app1Output["config"] as IDictionary<string, object?>;
+        var app2Config = app2Output["config"] as IDictionary<string, object?>;
+        Assert.IsNotNull(app1Config, "app1 should have config");
+        Assert.IsNotNull(app2Config, "app2 should have config");
+        
+        // app1 should have cache config, app2 should have queue config
+        Assert.IsTrue(app1Config.ContainsKey("cache"), "app1 should have cache config");
+        Assert.IsTrue(app2Config.ContainsKey("queue"), "app2 should have queue config");
+    }
+
+    /// <summary>
+    /// Test that all-files mode (default) still works as before
+    /// </summary>
+    [TestMethod]
+    public async Task AllFilesMerging_ShouldProduceSingleOutput()
+    {
+        // Arrange - use the new SameNamed merge mode for multiple files/app configs
+        var testRoot = Path.Combine(_examplesPath, "samenamed");
+        var options = new HimlOptions
+        {
+            WorkingDirectory = testRoot,
+            MergeMode = MergeMode.AllFiles  // explicit setting, though it's the default
+        };
+
+        // Act
+        var result = await _processor.ProcessAsync(Path.Combine(testRoot, "env=dev/region=us-east-1"), options);
+
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.IsTrue(result.IsSuccess, $"Processing failed with errors: {string.Join(", ", result.Errors)}");
+        
+        // Should have single output in Data (traditional behavior)
+        Assert.IsTrue(result.Data.Count > 0, "Should have data in single output");
+        Assert.IsNotNull(result.Output, "Should have formatted output");
+        
+        // Should NOT have multiple outputs
+        Assert.AreEqual(0, result.MultipleOutputs.Count, "Should not have multiple outputs");
+        Assert.AreEqual(0, result.MultipleFormattedOutputs.Count, "Should not have multiple formatted outputs");
+        
+        // Verify the single output contains expected merged data from both files
+        Assert.IsTrue(result.Data.ContainsKey("env"), "Should contain 'env' key");
+        Assert.AreEqual("dev", result.Data["env"]);
+        Assert.IsTrue(result.Data.ContainsKey("region"), "Should contain 'region' key");
+        Assert.AreEqual("us-east-1", result.Data["region"]);
+        
+        // In all-files mode, later files override earlier ones, so we should see app2 values for conflicting keys
+        Assert.IsTrue(result.Data.ContainsKey("app_name"), "Should contain 'app_name' key");
+        Assert.AreEqual("app2", result.Data["app_name"], "app2 should override app1 in all-files mode");
+        Assert.IsTrue(result.Data.ContainsKey("app_type"), "Should contain 'app_type' key");
+        Assert.AreEqual("api", result.Data["app_type"], "Should have app2's app_type");
+        
+        // Should have merged config from both apps
+        var config = result.Data["config"] as IDictionary<string, object?>;
+        Assert.IsNotNull(config, "Should have merged config");
+        
+        // Should have both cache (from app1) and queue (from app2) since they don't conflict
+        Assert.IsTrue(config.ContainsKey("cache"), "Should contain cache config from app1");
+        Assert.IsTrue(config.ContainsKey("queue"), "Should contain queue config from app2");
     }
 }

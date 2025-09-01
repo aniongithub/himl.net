@@ -1,0 +1,8 @@
+region: eu-west-1
+config:
+  database:
+    host: "eu-west-1-prod-db.example.com"
+  availability_zone: "eu-west-1a"
+  region_specific:
+    data_center: "dc-eu-west-1"
+    compliance: "GDPR"

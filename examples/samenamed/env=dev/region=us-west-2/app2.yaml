@@ -1,0 +1,9 @@
+region: us-west-2
+config:
+  database:
+    host: "us-west-2-dev-db.example.com"
+  queue:
+    host: "us-west-2-dev-queue.example.com"
+  availability_zone: "us-west-2b"
+  region_specific:
+    data_center: "dc-west-2"

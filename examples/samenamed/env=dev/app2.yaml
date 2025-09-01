@@ -1,0 +1,12 @@
+env: dev
+config:
+  database:
+    host: "dev-db.example.com"
+    ssl: false
+  queue:
+    host: "dev-queue.example.com"
+  debug: true
+  
+resources:
+  cpu: "400m"  # Lower resources for dev
+  memory: "512Mi"

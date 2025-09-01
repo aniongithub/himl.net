@@ -1,0 +1,7 @@
+region: us-east-1
+config:
+  database:
+    host: "us-east-1-dev-db.example.com"
+  availability_zone: "us-east-1a"
+  region_specific:
+    data_center: "dc-east-1"

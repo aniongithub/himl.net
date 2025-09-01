@@ -1,0 +1,20 @@
+app_name: app2
+app_type: api
+version: "2.1.0"
+
+config:
+  database:
+    host: localhost
+    port: 5432
+    name: app2_db
+  queue:
+    type: rabbitmq
+    exchanges: ["events", "tasks"]
+  
+features:
+  - authentication
+  - rate_limiting
+  
+resources:
+  cpu: "1000m"
+  memory: "1Gi"
